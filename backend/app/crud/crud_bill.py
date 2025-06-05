@@ -44,10 +44,51 @@ class CRUDBill:
         print(f"DEBUG: Bill created with ID {db_bill.id}, items count: {len(db_bill.items)}")
         return db_bill
 
-    # Placeholder for update - to be implemented later
-    # def update(self, db: Session, *, db_obj: BillModel, obj_in: Union[BillUpdateSchema, Dict[str, Any]]) -> BillModel:
-    #     ...
-    #     return super().update(db, db_obj=db_obj, obj_in=obj_in)
+    def update_with_items(
+        self, db: Session, *, db_obj: BillModel, obj_in: BillCreateSchema
+    ) -> BillModel:
+        """
+        Update an existing Bill and its associated LineItems.
+        """
+        # Get all data from the schema
+        all_data = obj_in.model_dump()
+        
+        # Update Bill fields (excluding line items)
+        bill_data = {k: v for k, v in all_data.items() if k not in ["items_services_purchased", "items"]}
+        for field, value in bill_data.items():
+            if hasattr(db_obj, field):
+                setattr(db_obj, field, value)
+        
+        # Delete existing line items
+        db.query(LineItemModel).filter(LineItemModel.bill_id == db_obj.id).delete()
+        
+        # Get items data - check both possible field names
+        items_data = []
+        if "items_services_purchased" in all_data and all_data["items_services_purchased"]:
+            items_data = all_data["items_services_purchased"]
+        elif "items" in all_data and all_data["items"]:
+            items_data = all_data["items"]
+            
+        if items_data:
+            for item_data in items_data:
+                # Handle both dict and schema objects
+                if hasattr(item_data, 'model_dump'):
+                    item_dict = item_data.model_dump()
+                elif isinstance(item_data, dict):
+                    item_dict = item_data.copy()
+                else:
+                    item_dict = item_data.__dict__.copy()
+                
+                # Remove any existing id and bill_id fields
+                item_dict.pop('id', None)
+                item_dict.pop('bill_id', None)
+                
+                db_item = LineItemModel(**item_dict, bill_id=db_obj.id)
+                db.add(db_item)
+        
+        db.commit()
+        db.refresh(db_obj)
+        return db_obj
 
     # Placeholder for delete - to be implemented later
     # def remove(self, db: Session, *, id: int) -> BillModel:

@@ -86,4 +86,19 @@ async def read_bill(
     db_bill = crud_bill.bill.get(db, id=bill_id)
     if db_bill is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bill not found")
-    return db_bill 
+    return db_bill
+
+@router.put("/{bill_id}", response_model=BillSchema)
+async def update_bill(
+    bill_id: int,
+    bill_update: BillCreateSchema,  # Reusing BillCreateSchema for updates
+    db: Session = Depends(get_db)
+) -> BillSchema:
+    """Update a specific bill by its ID."""
+    db_bill = crud_bill.bill.get(db, id=bill_id)
+    if db_bill is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bill not found")
+    
+    # Update the bill with new data
+    updated_bill = crud_bill.bill.update_with_items(db=db, db_obj=db_bill, obj_in=bill_update)
+    return updated_bill 
