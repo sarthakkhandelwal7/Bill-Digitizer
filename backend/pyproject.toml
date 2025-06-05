@@ -1,0 +1,32 @@
+[tool.poetry]
+name = "bill-digitizer"
+version = "0.1.0"
+description = "A FastAPI service for bill digitization using Google's Gemini AI"
+authors = ["Sarthak Khandelwal <sarthak.k7189@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+fastapi = "^0.109.0"
+uvicorn = {extras = ["standard"], version = "^0.27.0"}
+python-multipart = "^0.0.6"
+pydantic = "^2.6.0"
+google-generativeai = "^0.3.2"
+langchain-core = "^0.1.17"
+pillow = "^10.2.0"
+pandas = "^2.2.0"
+openpyxl = "^3.1.2"
+python-dotenv = "^1.0.0"
+pydantic-settings = "^2.2.1"
+SQLAlchemy = "^2.0.25"
+psycopg2-binary = "^2.9.9"
+alembic = "^1.13.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+black = "^24.1.0"
+isort = "^5.13.0"
+flake8 = "^7.0.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api" 
