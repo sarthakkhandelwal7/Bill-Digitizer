@@ -9,7 +9,7 @@ class Bill(Base):
     __tablename__ = "bills"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True) # User who owns this bill
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True) # User who owns this bill (nullable until authentication is implemented)
     
     document_type = Column(String, nullable=True)
     merchant_company_name = Column(String, index=True, nullable=True)
