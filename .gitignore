@@ -308,6 +308,15 @@ alembic/versions/*.pyc
 *.orig
 *.rej
 
+# Frontend specific
+/frontend/build/
+/frontend/node_modules/
+/frontend/.env.local
+/frontend/.env.development.local
+/frontend/.env.test.local
+/frontend/.env.production.local
+/frontend/package-lock.json
+
 # API Keys and secrets (additional safety)
 **/secrets/
 **/*secret*
