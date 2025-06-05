@@ -44,10 +44,12 @@ class BillBase(BaseModel):
 class BillCreate(BillBase):
     """Schema for creating a bill, including line items."""
     items_services_purchased: Optional[List[LineItemCreate]] = Field(default_factory=list, description="List of items purchased")
+    # Note: user_id will be set by the API endpoint from the authenticated user
 
 class Bill(BillBase):
     """Schema for representing a bill, including its ID and line items."""
     id: int
+    user_id: int  # Foreign key to User
     items_services_purchased: List[LineItem] = Field(default_factory=list, alias="items")
 
     model_config = {"from_attributes": True} 
