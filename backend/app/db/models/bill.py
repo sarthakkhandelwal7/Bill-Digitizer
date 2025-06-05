@@ -9,7 +9,7 @@ class Bill(Base):
     __tablename__ = "bills"
 
     id = Column(Integer, primary_key=True, index=True)
-    # user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True) # For future user integration
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True) # User who owns this bill
     
     document_type = Column(String, nullable=True)
     merchant_company_name = Column(String, index=True, nullable=True)
@@ -31,8 +31,9 @@ class Bill(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+    # Relationships
     items = relationship("LineItem", back_populates="bill", cascade="all, delete-orphan")
-    # owner = relationship("User", back_populates="bills") # For future user integration
+    owner = relationship("User", back_populates="bills")
 
 class LineItem(Base):
     __tablename__ = "line_items"

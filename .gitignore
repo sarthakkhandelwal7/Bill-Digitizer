@@ -6,6 +6,9 @@
 .env.production
 *.env
 
+# Personal tracking documents
+PROJECT_PLAN.md
+
 # Python
 __pycache__/
 *.py[cod]

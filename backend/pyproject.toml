@@ -20,6 +20,14 @@ pydantic-settings = "^2.2.1"
 SQLAlchemy = "^2.0.25"
 psycopg2-binary = "^2.9.9"
 alembic = "^1.13.1"
+# Authentication and OAuth
+email-validator = "^2.1.0"
+python-jose = {extras = ["cryptography"], version = "^3.3.0"}
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+google-auth = "^2.27.0"
+google-auth-oauthlib = "^1.2.0"
+# Future Stripe integration
+# stripe = "^7.10.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"

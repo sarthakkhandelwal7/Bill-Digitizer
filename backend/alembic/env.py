@@ -28,6 +28,7 @@ sys.path.append(BASE_DIR)
 
 from app.db.base_class import Base # Import your Base
 from app.db.models.bill import Bill, LineItem # Import all your models
+from app.db.models.user import User # Import User model
 from app.core.config import get_settings # Import your settings
 
 target_metadata = Base.metadata
