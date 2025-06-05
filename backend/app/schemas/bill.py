@@ -49,7 +49,7 @@ class BillCreate(BillBase):
 class Bill(BillBase):
     """Schema for representing a bill, including its ID and line items."""
     id: int
-    user_id: int  # Foreign key to User
+    user_id: Optional[int] = None  # Foreign key to User (optional until authentication is implemented)
     items_services_purchased: List[LineItem] = Field(default_factory=list, alias="items")
 
     model_config = {"from_attributes": True} 
