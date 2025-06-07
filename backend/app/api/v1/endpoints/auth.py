@@ -8,8 +8,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.user import User as UserSchema, UserCreate
-from app.schemas.auth import Token, GoogleAuth
+from app.schemas.user import User as UserSchema, UserCreate, Token, GoogleAuth
 from app.crud.crud_user import CRUDUser
 from app.api import deps
 from app.core import auth

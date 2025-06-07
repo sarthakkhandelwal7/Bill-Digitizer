@@ -28,10 +28,10 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    if (error.response?.status === 401) {
-      // Token is invalid, remove it and redirect to login
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      // Token is invalid or forbidden, remove it and redirect to home
       localStorage.removeItem('token');
-      window.location.reload();
+      window.location.href = '/';
     }
     return Promise.reject(error);
   }
