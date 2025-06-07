@@ -1,8 +1,8 @@
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, DateTime
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func # For server-side default timestamp
+from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID
-import datetime # For type hinting if needed for default
+import datetime 
 import uuid
 
 from app.db.base_class import Base
@@ -36,6 +36,8 @@ class Bill(Base):
     # Relationships
     items = relationship("LineItem", back_populates="bill", cascade="all, delete-orphan")
     owner = relationship("User", back_populates="bills")
+    bill_categories = relationship("BillCategory", back_populates="bill", cascade="all, delete-orphan")
+    categories = relationship("Category", secondary="bill_categories", back_populates="bills")
 
 class LineItem(Base):
     __tablename__ = "line_items"
