@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings, Settings
-from app.api.v1.endpoints import bills
+from app.api.v1.api import api_router
 
 def create_application() -> FastAPI:
     """Create and configure the FastAPI application."""
@@ -23,7 +23,7 @@ def create_application() -> FastAPI:
     )
     
     
-    app.include_router(bills.router, prefix=f"{settings.API_V1_STR}/bills", tags=["bills"])
+    app.include_router(api_router, prefix=settings.API_V1_STR)
     
     return app
 
