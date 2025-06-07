@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
-import { Upload, Camera, FileText, CheckCircle, AlertCircle, Loader } from 'lucide-react';
-import axios from 'axios';
+import { Upload, Camera, FileText, CheckCircle, AlertCircle, Loader, Lock } from 'lucide-react';
+import api from '../utils/api';
+import { useAuth } from '../context/AuthContext';
+import GoogleLoginButton from '../components/GoogleLoginButton';
 
 function HomePage() {
   const [uploading, setUploading] = useState(false);
@@ -10,10 +12,16 @@ function HomePage() {
   const [error, setError] = useState(null);
   const [billData, setBillData] = useState(null);
   const navigate = useNavigate();
+  const { isAuthenticated, loading: authLoading } = useAuth();
 
   const onDrop = async (acceptedFiles) => {
     const file = acceptedFiles[0];
     if (!file) return;
+
+    if (!isAuthenticated) {
+      setError('Please log in to upload bills');
+      return;
+    }
 
     setUploading(true);
     setError(null);
@@ -23,7 +31,7 @@ function HomePage() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await axios.post('/api/v1/bills/analyze', formData, {
+      const response = await api.post('/api/v1/bills/analyze', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -50,8 +58,28 @@ function HomePage() {
       'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp']
     },
     multiple: false,
-    disabled: uploading
+    disabled: uploading || !isAuthenticated
   });
+
+  const handleGoogleSuccess = (result) => {
+    console.log('Google login successful:', result);
+  };
+
+  const handleGoogleError = (error) => {
+    console.error('Google login error:', error);
+    alert('Google login failed. Please try again.');
+  };
+
+  if (authLoading) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center">
+          <Loader className="h-8 w-8 text-primary-600 animate-spin mx-auto mb-4" />
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -64,21 +92,48 @@ function HomePage() {
         </p>
       </div>
 
+      {/* Authentication Required Notice */}
+      {!isAuthenticated && (
+        <div className="mb-8 p-6 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center justify-center mb-4">
+            <Lock className="h-8 w-8 text-blue-600 mr-3" />
+            <h2 className="text-xl font-semibold text-blue-900">Authentication Required</h2>
+          </div>
+          <p className="text-blue-700 text-center mb-6">
+            Please sign in with Google to start digitizing your bills
+          </p>
+          <div className="flex justify-center">
+            <GoogleLoginButton 
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Upload Area */}
       <div className="mb-8">
         <div
           {...getRootProps()}
-          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
-            isDragActive
+          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+            !isAuthenticated
+              ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-50'
+              : isDragActive
               ? 'border-primary-500 bg-primary-50'
               : uploading
               ? 'border-gray-300 bg-gray-50 cursor-not-allowed'
-              : 'border-gray-300 hover:border-primary-500 hover:bg-primary-50'
+              : 'border-gray-300 hover:border-primary-500 hover:bg-primary-50 cursor-pointer'
           }`}
         >
           <input {...getInputProps()} />
           
-          {uploading ? (
+          {!isAuthenticated ? (
+            <div className="flex flex-col items-center">
+              <Lock className="h-12 w-12 text-gray-400 mb-4" />
+              <p className="text-lg font-medium text-gray-900 mb-2">Authentication Required</p>
+              <p className="text-gray-600">Please sign in to upload bills</p>
+            </div>
+          ) : uploading ? (
             <div className="flex flex-col items-center">
               <Loader className="h-12 w-12 text-primary-600 animate-spin mb-4" />
               <p className="text-lg font-medium text-gray-900 mb-2">Processing your bill...</p>

@@ -18,7 +18,7 @@ import {
   Plus,
   Trash2
 } from 'lucide-react';
-import axios from 'axios';
+import api from '../utils/api';
 
 function BillDetailPage() {
   const { id } = useParams();
@@ -36,8 +36,9 @@ function BillDetailPage() {
   const fetchBill = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`/api/v1/bills/${id}`);
+      const response = await api.get(`/api/v1/bills/${id}`);
       setBill(response.data);
+      setEditedBill(response.data);
     } catch (err) {
       setError('Failed to load bill details. Please try again.');
       console.error('Error fetching bill:', err);
@@ -129,7 +130,7 @@ function BillDetailPage() {
       // Remove the 'items' field to avoid confusion
       delete dataToSend.items;
       
-      const response = await axios.put(`/api/v1/bills/${id}`, dataToSend);
+      const response = await api.put(`/api/v1/bills/${id}`, dataToSend);
       setBill(response.data);
       setIsEditing(false);
       setEditedBill(null);

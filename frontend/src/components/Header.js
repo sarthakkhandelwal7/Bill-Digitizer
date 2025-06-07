@@ -1,12 +1,25 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Receipt, List, Home } from 'lucide-react';
+import { Receipt, List, Home, User, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import GoogleLoginButton from './GoogleLoginButton';
 
 function Header() {
   const location = useLocation();
+  const { user, loading, logout, isAuthenticated } = useAuth();
 
   const isActive = (path) => {
     return location.pathname === path;
+  };
+
+  const handleGoogleSuccess = (result) => {
+    console.log('Google login successful:', result);
+    // The GoogleLoginButton component handles token storage and page reload
+  };
+
+  const handleGoogleError = (error) => {
+    console.error('Google login error:', error);
+    alert('Google login failed. Please try again.');
   };
 
   return (
@@ -18,7 +31,7 @@ function Header() {
             <h1 className="text-xl font-bold text-gray-900">Bill Digitizer</h1>
           </div>
           
-          <nav className="flex space-x-8">
+          <nav className="flex items-center space-x-8">
             <Link
               to="/"
               className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -31,17 +44,49 @@ function Header() {
               <span>Home</span>
             </Link>
             
-            <Link
-              to="/bills"
-              className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive('/bills') 
-                  ? 'text-primary-600 bg-primary-50' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              <List className="h-4 w-4" />
-              <span>My Bills</span>
-            </Link>
+            {isAuthenticated && (
+              <Link
+                to="/bills"
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive('/bills') 
+                    ? 'text-primary-600 bg-primary-50' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                <List className="h-4 w-4" />
+                <span>My Bills</span>
+              </Link>
+            )}
+
+            {/* Authentication Section */}
+            <div className="flex items-center space-x-4">
+              {loading ? (
+                <div className="text-sm text-gray-500">Loading...</div>
+              ) : isAuthenticated ? (
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-2">
+                    <User className="h-4 w-4 text-gray-600" />
+                    <span className="text-sm text-gray-700">
+                      {user?.full_name || user?.email || 'User'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={logout}
+                    className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>Logout</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center">
+                  <GoogleLoginButton 
+                    onSuccess={handleGoogleSuccess}
+                    onError={handleGoogleError}
+                  />
+                </div>
+              )}
+            </div>
           </nav>
         </div>
       </div>

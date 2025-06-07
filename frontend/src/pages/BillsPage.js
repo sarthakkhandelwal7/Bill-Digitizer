@@ -1,25 +1,45 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Calendar, DollarSign, Building, Eye, Loader, AlertCircle } from 'lucide-react';
-import axios from 'axios';
+import api from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 
 function BillsPage() {
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
+    // Wait for auth loading to complete
+    if (authLoading) return;
+    
+    // If not authenticated, redirect to home
+    if (!isAuthenticated) {
+      navigate('/');
+      return;
+    }
+    
     fetchBills();
-  }, []);
+  }, [isAuthenticated, authLoading, navigate]);
 
   const fetchBills = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/v1/bills');
+      const response = await api.get('/api/v1/bills');
       setBills(response.data);
     } catch (err) {
-      setError('Failed to load bills. Please try again.');
       console.error('Error fetching bills:', err);
+      
+      // Handle specific error cases
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        // Authentication/authorization errors are handled by the API interceptor
+        // which will redirect to home, so we don't need to set an error here
+        return;
+      }
+      
+      setError('Failed to load bills. Please try again.');
     } finally {
       setLoading(false);
     }

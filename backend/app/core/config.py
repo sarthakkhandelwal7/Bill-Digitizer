@@ -12,20 +12,30 @@ class Settings(BaseSettings):
     
     # Model settings
     MODEL_NAME: str = "gemini-2.0-flash-lite"
+    
+    # Authentication settings
+    SECRET_KEY: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 24*60*7
+
+    
+    # OAuth settings
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
 
     # Database settings
     POSTGRES_SERVER: str = "db"
-    POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str = "password"
+    POSTGRES_USER: str
+    POSTGRES_PASSWORD: str
     POSTGRES_DB: str = "bill_digitizer_db"
     POSTGRES_PORT: int = 5432
-    DATABASE_URL: Optional[str] = None # Assembled from components
+    DATABASE_URL: Optional[str] = None
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
 
     def __init__(self, **values):
+        """Initialize settings and construct DATABASE_URL if not provided."""
         super().__init__(**values)
-        if not self.DATABASE_URL: # Construct DATABASE_URL if not explicitly set
+        if not self.DATABASE_URL:
             self.DATABASE_URL = f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
 

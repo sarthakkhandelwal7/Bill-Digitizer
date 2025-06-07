@@ -1,97 +1,168 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, delete
+from sqlalchemy.orm import selectinload
 from typing import List, Optional
+import uuid
 
+from app.crud.base import CRUDBase
 from app.db.models.bill import Bill as BillModel, LineItem as LineItemModel
-from app.schemas.bill import BillCreate as BillCreateSchema, LineItemCreate as LineItemCreateSchema
+from app.schemas.bill import BillCreate as BillCreateSchema, BillUpdate as BillUpdateSchema, LineItemCreate as LineItemCreateSchema
 
-class CRUDBill:
-    def get(self, db: Session, id: int) -> Optional[BillModel]:
-        return db.query(BillModel).filter(BillModel.id == id).first()
+class CRUDBill(CRUDBase[BillModel, BillCreateSchema, BillUpdateSchema]):
+    async def get(self, db: AsyncSession, id: str) -> Optional[BillModel]:
+        """Handles UUID string conversion and validation"""
+        try:
+            bill_uuid = uuid.UUID(id) if isinstance(id, str) else id
+            result = await db.execute(
+                select(BillModel)
+                .options(selectinload(BillModel.items), selectinload(BillModel.owner))
+                .filter(BillModel.id == bill_uuid)
+            )
+            return result.scalar_one_or_none()
+        except (ValueError, TypeError):
+            return None
 
-    def get_multi(
-        self, db: Session, *, skip: int = 0, limit: int = 100
+    async def get_multi(
+        self, db: AsyncSession, *, skip: int = 0, limit: int = 100
     ) -> List[BillModel]:
-        return db.query(BillModel).offset(skip).limit(limit).all()
+        result = await db.execute(
+            select(BillModel)
+            .options(selectinload(BillModel.items), selectinload(BillModel.owner))
+            .offset(skip)
+            .limit(limit)
+        )
+        return result.scalars().all()
+    
+    async def get_multi_by_owner(
+        self, db: AsyncSession, *, owner_id: str, skip: int = 0, limit: int = 100
+    ) -> List[BillModel]:
+        try:
+            owner_uuid = uuid.UUID(owner_id) if isinstance(owner_id, str) else owner_id
+            result = await db.execute(
+                select(BillModel)
+                .options(selectinload(BillModel.items), selectinload(BillModel.owner))
+                .filter(BillModel.user_id == owner_uuid)
+                .offset(skip)
+                .limit(limit)
+            )
+            return result.scalars().all()
+        except (ValueError, TypeError):
+            return []
 
-    def create_with_items(
-        self, db: Session, *, bill_in: BillCreateSchema
-    ) -> BillModel:
-        """
-        Create a new Bill and its associated LineItems.
-        """
-        print(f"DEBUG: Creating bill with {len(bill_in.items_services_purchased or [])} line items")
+    async def create_with_items(self, db: AsyncSession, *, bill_in: BillCreateSchema) -> BillModel:
+        """Creates bill with line items in single transaction"""
+        user_uuid = None
+        if bill_in.user_id:
+            try:
+                user_uuid = uuid.UUID(bill_in.user_id) if isinstance(bill_in.user_id, str) else bill_in.user_id
+            except (ValueError, TypeError):
+                pass
         
-        # Create Bill object from schema, excluding line items for now
-        bill_data = bill_in.model_dump(exclude={"items_services_purchased"})
-        db_bill = BillModel(**bill_data)
-        
+        bill_data = bill_in.model_dump(exclude={'items_services_purchased', 'user_id'})
+        db_bill = BillModel(**bill_data, user_id=user_uuid)
         db.add(db_bill)
-        db.flush() # Ensure bill_id is available for line items
-
-        # Create LineItem objects
+        await db.flush()
+        
+        # Save the bill ID before committing to avoid lazy loading issues
+        bill_id = db_bill.id
+        
         if bill_in.items_services_purchased:
-            print(f"DEBUG: Processing {len(bill_in.items_services_purchased)} line items")
-            for i, item_schema in enumerate(bill_in.items_services_purchased):
-                item_data = item_schema.model_dump()
-                print(f"DEBUG: Line item {i+1}: {item_data}")
-                db_item = LineItemModel(**item_data, bill_id=db_bill.id)
-                db.add(db_item) # Explicitly add each line item to the session
-        else:
-            print("DEBUG: No line items to process")
-        
-        db.commit()
-        db.refresh(db_bill) # Refresh to get updated state, including generated IDs and relationships
-        print(f"DEBUG: Bill created with ID {db_bill.id}, items count: {len(db_bill.items)}")
-        return db_bill
-
-    def update_with_items(
-        self, db: Session, *, db_obj: BillModel, obj_in: BillCreateSchema
-    ) -> BillModel:
-        """
-        Update an existing Bill and its associated LineItems.
-        """
-        # Get all data from the schema
-        all_data = obj_in.model_dump()
-        
-        # Update Bill fields (excluding line items)
-        bill_data = {k: v for k, v in all_data.items() if k not in ["items_services_purchased", "items"]}
-        for field, value in bill_data.items():
-            if hasattr(db_obj, field):
-                setattr(db_obj, field, value)
-        
-        # Delete existing line items
-        db.query(LineItemModel).filter(LineItemModel.bill_id == db_obj.id).delete()
-        
-        # Get items data - check both possible field names
-        items_data = []
-        if "items_services_purchased" in all_data and all_data["items_services_purchased"]:
-            items_data = all_data["items_services_purchased"]
-        elif "items" in all_data and all_data["items"]:
-            items_data = all_data["items"]
-            
-        if items_data:
-            for item_data in items_data:
-                # Handle both dict and schema objects
-                if hasattr(item_data, 'model_dump'):
-                    item_dict = item_data.model_dump()
-                elif isinstance(item_data, dict):
-                    item_dict = item_data.copy()
-                else:
-                    item_dict = item_data.__dict__.copy()
-                
-                # Remove any existing id and bill_id fields
-                item_dict.pop('id', None)
-                item_dict.pop('bill_id', None)
-                
-                db_item = LineItemModel(**item_dict, bill_id=db_obj.id)
+            for item_data in bill_in.items_services_purchased:
+                item_dict = item_data.model_dump()
+                db_item = LineItemModel(**item_dict, bill_id=bill_id)
                 db.add(db_item)
         
-        db.commit()
-        db.refresh(db_obj)
-        return db_obj
+        await db.commit()
+        
+        # Eagerly load the items relationship to prevent lazy loading issues
+        result = await db.execute(
+            select(BillModel)
+            .options(selectinload(BillModel.items), selectinload(BillModel.owner))
+            .filter(BillModel.id == bill_id)
+        )
+        return result.scalar_one()
 
-    # Placeholder for delete - to be implemented later
-    # def remove(self, db: Session, *, id: int) -> BillModel:
-    #     return super().remove(db, id=id)
+    async def update_with_items(self, db: AsyncSession, *, db_obj: BillModel, obj_in: BillCreateSchema) -> BillModel:
+        """Updates bill and replaces all line items"""
+        # Save the bill ID before operations to avoid lazy loading issues
+        bill_id = db_obj.id
+        
+        bill_data = obj_in.model_dump(exclude={'items_services_purchased', 'user_id'})
+        for field, value in bill_data.items():
+            if value is not None:
+                setattr(db_obj, field, value)
+        
+        await db.execute(delete(LineItemModel).filter(LineItemModel.bill_id == bill_id))
+        
+        if obj_in.items_services_purchased:
+            for item_data in obj_in.items_services_purchased:
+                item_dict = item_data.model_dump()
+                db_item = LineItemModel(**item_dict, bill_id=bill_id)
+                db.add(db_item)
+        
+        await db.commit()
+        
+        # Eagerly load the items relationship to prevent lazy loading issues
+        result = await db.execute(
+            select(BillModel)
+            .options(selectinload(BillModel.items), selectinload(BillModel.owner))
+            .filter(BillModel.id == bill_id)
+        )
+        return result.scalar_one()
 
-bill = CRUDBill() 
+    async def remove(self, db: AsyncSession, *, id: str) -> Optional[BillModel]:
+        try:
+            bill_uuid = uuid.UUID(id) if isinstance(id, str) else id
+            result = await db.execute(select(BillModel).filter(BillModel.id == bill_uuid))
+            obj = result.scalar_one_or_none()
+            if obj:
+                await db.delete(obj)
+                await db.commit()
+            return obj
+        except (ValueError, TypeError):
+            return None
+
+    async def get_bills_by_date_range(
+        self, db: AsyncSession, *, owner_id: str, start_date, end_date, skip: int = 0, limit: int = 100
+    ) -> List[BillModel]:
+        try:
+            owner_uuid = uuid.UUID(owner_id) if isinstance(owner_id, str) else owner_id
+            result = await db.execute(
+                select(BillModel)
+                .options(selectinload(BillModel.items), selectinload(BillModel.owner))
+                .filter(
+                    BillModel.user_id == owner_uuid,
+                    BillModel.created_at >= start_date,
+                    BillModel.created_at <= end_date
+                )
+                .offset(skip)
+                .limit(limit)
+            )
+            return result.scalars().all()
+        except (ValueError, TypeError):
+            return []
+
+    async def get_bills_by_merchant(
+        self, db: AsyncSession, *, owner_id: str, merchant_name: str, skip: int = 0, limit: int = 100
+    ) -> List[BillModel]:
+        try:
+            owner_uuid = uuid.UUID(owner_id) if isinstance(owner_id, str) else owner_id
+            result = await db.execute(
+                select(BillModel)
+                .options(selectinload(BillModel.items), selectinload(BillModel.owner))
+                .filter(
+                    BillModel.user_id == owner_uuid,
+                    BillModel.merchant_company_name.ilike(f"%{merchant_name}%")
+                )
+                .offset(skip)
+                .limit(limit)
+            )
+            return result.scalars().all()
+        except (ValueError, TypeError):
+            return []
+
+
+# Professional instantiation - no amateur naming
+bill = CRUDBill(BillModel)
+
+ 

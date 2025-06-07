@@ -2,6 +2,8 @@ from pydantic import BaseModel, Field, EmailStr
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
+from pydantic import validator
+import uuid
 
 # Import the enums from the model
 class SubscriptionStatus(str, Enum):
@@ -20,45 +22,55 @@ class SubscriptionPlan(str, Enum):
 # --- User Schemas ---
 class UserBase(BaseModel):
     """Base schema for user data"""
-    email: EmailStr = Field(..., description="User's email address")
-    full_name: Optional[str] = Field(None, description="User's full name")
-    given_name: Optional[str] = Field(None, description="User's first name")
-    family_name: Optional[str] = Field(None, description="User's last name")
-    picture_url: Optional[str] = Field(None, description="URL to user's profile picture")
-    timezone: str = Field(default="UTC", description="User's timezone")
-    locale: str = Field(default="en-US", description="User's locale")
-
-class UserCreate(UserBase):
-    """Schema for creating a user via Google OAuth"""
-    google_id: str = Field(..., description="Google user ID")
-    google_verified_email: bool = Field(default=False, description="Whether email is verified by Google")
-    email_verified: bool = Field(default=False, description="Whether email is verified")
-
-class UserUpdate(BaseModel):
-    """Schema for updating user information"""
+    email: Optional[EmailStr] = None
+    is_active: Optional[bool] = True
+    is_superuser: bool = False
     full_name: Optional[str] = None
+    username: Optional[str] = None
     given_name: Optional[str] = None
     family_name: Optional[str] = None
     picture_url: Optional[str] = None
-    timezone: Optional[str] = None
-    locale: Optional[str] = None
-    preferences: Optional[str] = None  # JSON string
+    avatar_url: Optional[str] = None
+    auth_provider: Optional[str] = "google"
+    google_id: Optional[str] = None
+    is_verified: Optional[bool] = False
+    email_verified: Optional[bool] = False
+    google_verified_email: Optional[bool] = False
+
+class UserCreate(BaseModel):
+    """Schema for creating a user"""
+    email: EmailStr
+    username: str
+    full_name: Optional[str] = None
+    is_active: bool = True
+    is_superuser: bool = False
+    avatar_url: Optional[str] = None
+    auth_provider: str = "google"
+    google_id: Optional[str] = None
+    given_name: Optional[str] = None
+    family_name: Optional[str] = None
+    picture_url: Optional[str] = None
+    is_verified: bool = False
+
+class UserUpdate(UserBase):
+    """Schema for updating user information"""
+    pass
 
 class UserSubscriptionUpdate(BaseModel):
     """Schema for updating user subscription information"""
     subscription_status: Optional[SubscriptionStatus] = None
     subscription_plan: Optional[SubscriptionPlan] = None
+    trial_start_date: Optional[datetime] = None
+    trial_end_date: Optional[datetime] = None
+    subscription_start_date: Optional[datetime] = None
+    subscription_end_date: Optional[datetime] = None
     stripe_customer_id: Optional[str] = None
     stripe_subscription_id: Optional[str] = None
     monthly_bills_limit: Optional[int] = None
-    trial_start_date: Optional[datetime] = None
-    trial_end_date: Optional[datetime] = None
-    subscription_start_date: Optional[datetime] = None
-    subscription_end_date: Optional[datetime] = None
 
 class UserProfile(UserBase):
     """Schema for user profile information (public view)"""
-    id: int
+    id: str
     is_active: bool
     subscription_plan: SubscriptionPlan
     subscription_status: SubscriptionStatus
@@ -67,43 +79,30 @@ class UserProfile(UserBase):
     created_at: datetime
     last_login_at: Optional[datetime] = None
 
+    @validator('id', pre=True)
+    def convert_uuid_to_string(cls, v):
+        if isinstance(v, uuid.UUID):
+            return str(v)
+        return v
+
     model_config = {"from_attributes": True}
 
-class User(UserBase):
+class UserInDBBase(UserBase):
+    id: str
+    created_at: datetime
+    updated_at: Optional[datetime]
+    
+    @validator('id', pre=True)
+    def convert_uuid_to_string(cls, v):
+        if isinstance(v, uuid.UUID):
+            return str(v)
+        return v
+
+    model_config = {"from_attributes": True}
+
+class User(UserInDBBase):
     """Complete user schema with all fields"""
-    id: int
-    google_id: str
-    google_verified_email: bool
-    is_active: bool
-    is_verified: bool
-    email_verified: bool
-    
-    # Subscription information
-    subscription_status: SubscriptionStatus
-    subscription_plan: SubscriptionPlan
-    trial_start_date: Optional[datetime] = None
-    trial_end_date: Optional[datetime] = None
-    subscription_start_date: Optional[datetime] = None
-    subscription_end_date: Optional[datetime] = None
-    
-    # Stripe information (sensitive, only for admin/user)
-    stripe_customer_id: Optional[str] = None
-    stripe_subscription_id: Optional[str] = None
-    
-    # Usage tracking
-    bills_processed_count: int
-    monthly_bills_limit: int
-    last_bill_processed_at: Optional[datetime] = None
-    
-    # Additional settings
-    preferences: Optional[str] = None
-    
-    # Timestamps
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-    last_login_at: Optional[datetime] = None
-
-    model_config = {"from_attributes": True}
+    pass
 
 class UserWithBills(User):
     """User schema that includes their bills"""
@@ -116,11 +115,11 @@ class GoogleOAuthUser(BaseModel):
     """Schema for Google OAuth user data"""
     google_id: str
     email: EmailStr
+    email_verified: bool
+    full_name: Optional[str] = None
     given_name: Optional[str] = None
     family_name: Optional[str] = None
-    full_name: Optional[str] = None
     picture_url: Optional[str] = None
-    email_verified: bool = False
 
 class UserUsageStats(BaseModel):
     """Schema for user usage statistics"""
@@ -134,4 +133,22 @@ class UserUsageStats(BaseModel):
 
 # Forward reference for bills
 from app.schemas.bill import Bill
-UserWithBills.model_rebuild() 
+UserWithBills.model_rebuild()
+
+# Authentication schemas
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenPayload(BaseModel):
+    sub: Optional[str] = None
+
+class GoogleAuth(BaseModel):
+    access_token: str
+
+class GoogleCallbackAuth(BaseModel):
+    code: str
+    redirect_uri: str
+
+class Msg(BaseModel):
+    msg: str 
