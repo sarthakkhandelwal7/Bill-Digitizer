@@ -1,7 +1,7 @@
 import asyncio
 import time
 from datetime import timedelta
-from typing import Any
+from typing import Any, Dict
 import logging
 import httpx
 
@@ -36,7 +36,21 @@ def convert_string_boolean(value) -> bool:
 async def read_user_me(
     current_user: User = Depends(deps.get_current_active_user),
 ) -> Any:
+    """Get current authenticated user info"""
     return current_user
+
+
+@router.get("/test-auth")
+async def test_authentication(
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Dict[str, Any]:
+    """Test endpoint to verify authentication is working"""
+    return {
+        "authenticated": True,
+        "user_id": str(current_user.id),
+        "email": current_user.email,
+        "message": "Authentication successful! You can now test other protected endpoints."
+    }
 
 
 @router.put("/me", response_model=UserSchema)
