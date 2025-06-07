@@ -6,6 +6,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import HomePage from './pages/HomePage';
 import BillsPage from './pages/BillsPage';
 import BillDetailPage from './pages/BillDetailPage';
+import AnalyticsDashboard from './pages/AnalyticsDashboard';
 
 function App() {
   return (
@@ -24,6 +25,11 @@ function App() {
               <Route path="/bills/:id" element={
                 <ProtectedRoute>
                   <BillDetailPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/analytics" element={
+                <ProtectedRoute>
+                  <AnalyticsDashboard />
                 </ProtectedRoute>
               } />
             </Routes>
