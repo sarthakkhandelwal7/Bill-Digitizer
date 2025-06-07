@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, DollarSign, Building, Eye, Loader, AlertCircle } from 'lucide-react';
-import axios from 'axios';
+import api from '../utils/api';
 
 function BillsPage() {
   const [bills, setBills] = useState([]);
@@ -15,7 +15,7 @@ function BillsPage() {
   const fetchBills = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/v1/bills');
+      const response = await api.get('/api/v1/bills');
       setBills(response.data);
     } catch (err) {
       setError('Failed to load bills. Please try again.');
