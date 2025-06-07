@@ -1,8 +1,10 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from sqlalchemy.dialects.postgresql import UUID
 from enum import Enum
 import datetime
+import uuid
 
 from app.db.base_class import Base
 
@@ -24,17 +26,21 @@ class SubscriptionPlan(str, Enum):
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     
     # Basic user information
     email = Column(String, unique=True, index=True, nullable=False)
+    username = Column(String, unique=True, index=True, nullable=False)
     full_name = Column(String, nullable=True)
     given_name = Column(String, nullable=True)  # First name from Google
     family_name = Column(String, nullable=True)  # Last name from Google
     picture_url = Column(String, nullable=True)  # Profile picture from Google
+    avatar_url = Column(String, nullable=True)
+    auth_provider = Column(String, nullable=True)
+    is_superuser = Column(Boolean, default=False)
     
     # Google OAuth fields
-    google_id = Column(String, unique=True, index=True, nullable=False)
+    google_id = Column(String, unique=True, index=True, nullable=True)
     google_verified_email = Column(Boolean, default=False)
     
     # Account status

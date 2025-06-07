@@ -1,15 +1,17 @@
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func # For server-side default timestamp
+from sqlalchemy.dialects.postgresql import UUID
 import datetime # For type hinting if needed for default
+import uuid
 
 from app.db.base_class import Base
 
 class Bill(Base):
     __tablename__ = "bills"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True) # User who owns this bill (nullable until authentication is implemented)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True) # User who owns this bill (nullable until authentication is implemented)
     
     document_type = Column(String, nullable=True)
     merchant_company_name = Column(String, index=True, nullable=True)
@@ -38,13 +40,13 @@ class Bill(Base):
 class LineItem(Base):
     __tablename__ = "line_items"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     description = Column(String, nullable=True)
     quantity = Column(Float, nullable=True) # Using Float to accommodate int or float
     unit_price = Column(Float, nullable=True)
     total_price_per_item = Column(Float, nullable=True)
     
-    bill_id = Column(Integer, ForeignKey("bills.id"), nullable=False)
+    bill_id = Column(UUID(as_uuid=True), ForeignKey("bills.id"), nullable=False)
     bill = relationship("Bill", back_populates="items")
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())

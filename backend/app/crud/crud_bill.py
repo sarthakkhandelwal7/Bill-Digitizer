@@ -161,4 +161,8 @@ class CRUDBill(CRUDBase[BillModel, BillCreateSchema, BillUpdateSchema]):
         except (ValueError, TypeError):
             return []
 
+
+# Professional instantiation - no amateur naming
+bill = CRUDBill(BillModel)
+
  

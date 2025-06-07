@@ -11,28 +11,31 @@ from app.crud.crud_bill import CRUDBill
 from app.services.analytics_service import AnalyticsService
 from app.db.models.user import User
 from app.db.models.bill import Bill
-from app.db.session import get_async_db
+from app.db.session import get_database_session
 
 settings = get_settings()
 security = HTTPBearer()
 
 
-def get_user_crud() -> CRUDUser:
+def get_user_repository() -> CRUDUser:
+    """Get user repository instance"""
     return CRUDUser(User)
 
 
-def get_bill_crud() -> CRUDBill:
+def get_bill_repository() -> CRUDBill:
+    """Get bill repository instance"""
     return CRUDBill(Bill)
 
 
 def get_analytics_service() -> AnalyticsService:
+    """Get analytics service instance"""
     return AnalyticsService()
 
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_async_db),
-    user_crud: CRUDUser = Depends(get_user_crud)
+    db: AsyncSession = Depends(get_database_session),
+    user_repository: CRUDUser = Depends(get_user_repository)
 ) -> User:
     """Validates JWT token and returns authenticated user"""
     credentials_exception = HTTPException(
@@ -50,7 +53,7 @@ async def get_current_user(
     except JWTError:
         raise credentials_exception
     
-    user = await user_crud.get(db, id=user_id)
+    user = await user_repository.get(db, id=user_id)
     if user is None:
         raise credentials_exception
     return user
@@ -58,18 +61,20 @@ async def get_current_user(
 
 async def get_current_active_user(
     current_user: User = Depends(get_current_user),
-    user_crud: CRUDUser = Depends(get_user_crud)
+    user_repository: CRUDUser = Depends(get_user_repository)
 ) -> User:
-    if not user_crud.is_active(current_user):
+    """Get current active user, raise exception if inactive"""
+    if not user_repository.is_active(current_user):
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
 
-async def get_current_active_superuser(
+async def get_current_superuser(
     current_user: User = Depends(get_current_user),
-    user_crud: CRUDUser = Depends(get_user_crud)
+    user_repository: CRUDUser = Depends(get_user_repository)
 ) -> User:
-    if not user_crud.is_superuser(current_user):
+    """Get current user if superuser, raise exception otherwise"""
+    if not user_repository.is_superuser(current_user):
         raise HTTPException(
             status_code=400, detail="The user doesn't have enough privileges"
         )
@@ -78,8 +83,8 @@ async def get_current_active_superuser(
 
 async def get_current_user_optional(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    db: AsyncSession = Depends(get_async_db),
-    user_crud: CRUDUser = Depends(get_user_crud)
+    db: AsyncSession = Depends(get_database_session),
+    user_repository: CRUDUser = Depends(get_user_repository)
 ) -> Optional[User]:
     """Returns user if valid token provided, None otherwise"""
     if not credentials:
@@ -94,5 +99,5 @@ async def get_current_user_optional(
     except JWTError:
         return None
     
-    user = await user_crud.get(db, id=user_id)
+    user = await user_repository.get(db, id=user_id)
     return user 
