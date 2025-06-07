@@ -90,10 +90,8 @@ class User(Base):
         if self.subscription_plan in [SubscriptionPlan.PREMIUM.value, SubscriptionPlan.ENTERPRISE.value]:
             return True  # Unlimited for premium plans
         
-        # Check monthly limit for free/basic plans
         now = datetime.datetime.utcnow()
         if self.last_bill_processed_at:
-            # Reset counter if it's a new month
             if (now.year > self.last_bill_processed_at.year or 
                 now.month > self.last_bill_processed_at.month):
                 return True
@@ -104,7 +102,6 @@ class User(Base):
         """Increment the bills processed count"""
         now = datetime.datetime.utcnow()
         
-        # Reset counter if it's a new month
         if self.last_bill_processed_at:
             if (now.year > self.last_bill_processed_at.year or 
                 now.month > self.last_bill_processed_at.month):

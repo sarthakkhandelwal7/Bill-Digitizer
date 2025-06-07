@@ -28,13 +28,14 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str = "bill_digitizer_db"
     POSTGRES_PORT: int = 5432
-    DATABASE_URL: Optional[str] = None # Assembled from components
+    DATABASE_URL: Optional[str] = None
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
 
     def __init__(self, **values):
+        """Initialize settings and construct DATABASE_URL if not provided."""
         super().__init__(**values)
-        if not self.DATABASE_URL: # Construct DATABASE_URL if not explicitly set
+        if not self.DATABASE_URL:
             self.DATABASE_URL = f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
 

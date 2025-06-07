@@ -187,7 +187,6 @@ class AnalyticsService:
         end_date = datetime.utcnow()
         start_date = end_date - timedelta(days=days)
         
-        # Get total spending for percentage calculation
         total_result = await db.execute(
             select(func.coalesce(func.sum(Bill.total_amount), 0))
             .where(
@@ -199,7 +198,6 @@ class AnalyticsService:
         )
         total_spending = total_result.scalar()
         
-        # Get merchant spending
         result = await db.execute(
             select(
                 Bill.merchant_company_name.label('merchant_name'),

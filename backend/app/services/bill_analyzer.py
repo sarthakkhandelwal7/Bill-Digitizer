@@ -11,23 +11,19 @@ from app.core.config import Settings
 
 def downsize_to_800(input_path: str, downsize: bool = False) -> bytes:
     """Downsize image to max 800px for efficient processing"""
-    img = Image.open(input_path).convert("RGB")  # Ensure 3-channels
+    img = Image.open(input_path).convert("RGB")
     w, h = img.size
     
-    # If downsize is False, return original image without resizing
     if not downsize:
         buffer = io.BytesIO()
         img.save(buffer, format="JPEG", quality=85)
         return buffer.getvalue()
     
-    # Only resize if downsize is True and image is larger than 800px
     if max(w, h) <= 800:
-        # Already fits within 800px
         buffer = io.BytesIO()
         img.save(buffer, format="JPEG", quality=85)
         return buffer.getvalue()
     
-    # Compute new size with same aspect ratio
     if w >= h:
         new_w, new_h = 800, int(800 * (h / w))
     else:
@@ -43,33 +39,25 @@ def extract_json_from_response(text: str) -> str:
     if not text or text.strip() == "":
         return "{}"
     
-    # Remove any markdown code blocks
     text = re.sub(r'```json\s*', '', text)
     text = re.sub(r'```\s*$', '', text)
     
-    # Try to find JSON object in the text
     json_match = re.search(r'\{.*\}', text, re.DOTALL)
     if json_match:
         return json_match.group(0)
     
-    # If no JSON found, return empty object
     print(f"Warning: No JSON found in response. Raw text: {text[:200]}...")
     return "{}"
 
 class BillAnalyzer:
-    """Bill analysis class using native Google GenAI with LangChain patterns"""
+    """Analyzes bill/receipt images using Google Gemini AI to extract structured data"""
     
     def __init__(self, settings: Settings):
-        """Initialize the bill analyzer"""
+        """Initialize analyzer with Gemini model and output parser"""
         genai.configure(api_key=settings.GEMINI_API_KEY)
-        
-        # Initialize the model (native Google GenAI)
         self.model = genai.GenerativeModel(settings.MODEL_NAME)
-        
-        # Set up the Pydantic output parser (LangChain component)
         self.parser = PydanticOutputParser(pydantic_object=BillCreate)
         
-        # Create a more explicit prompt template
         self.prompt_template = """You are a bill/receipt analysis expert. Analyze this image and extract information into a JSON format.
 
 IMPORTANT: You must respond with ONLY a valid JSON object. Do not include any explanatory text, markdown formatting, or code blocks.
@@ -113,33 +101,23 @@ Example response format:
 Now analyze the image and respond with ONLY the JSON object:"""
     
     def analyze_image(self, image_path: str, downsize=False) -> Tuple[BillCreate, Optional[genai.types.GenerateContentResponse]]:
-        """Analyze a bill image and return structured data as BillCreate schema."""
+        """Analyze bill image and return structured data"""
         try:
-            # Process image (keeping it efficient)
             print("Processing image...")
             raw_bytes = downsize_to_800(image_path, downsize=downsize)
-            
-            # Open the processed image for the model
             processed_image = Image.open(io.BytesIO(raw_bytes))
             
             print(f"Image processed successfully")
-            
             print("Sending request to Gemini...")
-            # Send to native Google GenAI model
             response = self.model.generate_content([self.prompt_template, processed_image])
-            
             print("Received response from Gemini...")
             
-            # Get the text response
             response_text = response.text if hasattr(response, 'text') and response.text else ""
-            
             print(f"Raw response (first 200 chars): {response_text[:200]}...")
             
-            # Extract JSON from response
             json_text = extract_json_from_response(response_text)
             print(f"Extracted JSON (first 200 chars): {json_text[:200]}...")
             
-            # Try to parse JSON manually first
             try:
                 json_data = json.loads(json_text)
                 print("JSON parsed successfully")
@@ -148,8 +126,6 @@ Now analyze the image and respond with ONLY the JSON object:"""
                 print(f"JSON parsing failed: {e}. Using empty dict.")
                 json_data = {}
             
-            # Convert to BillCreate using Pydantic validation
-            # This will also validate nested items_services_purchased
             result = BillCreate(**json_data)
             print("Successfully created BillCreate object")
             print(f"DEBUG: BillCreate items count: {len(result.items_services_purchased or [])}")
@@ -162,12 +138,10 @@ Now analyze the image and respond with ONLY the JSON object:"""
             print(f"Error during image analysis: {e}")
             import traceback
             traceback.print_exc()
-            
-            # Return empty BillCreate object instead of None
             return BillCreate(), None
 
     def analyze_image_fallback(self, image_path: str) -> BillCreate:
-        """Fallback method with simpler prompting, returns BillCreate schema."""
+        """Fallback analysis with simpler prompting when primary method fails"""
         try:
             print("Trying fallback analysis method...")
             raw_bytes = downsize_to_800(image_path)
@@ -194,9 +168,8 @@ Replace the values with what you see in the image. Use null if you can't find so
             try:
                 json_data = json.loads(json_text)
             except json.JSONDecodeError:
-                 json_data = {} # Default to empty if parsing fails
+                 json_data = {}
             
-            # Ensure items_services_purchased is present for BillCreate validation
             if 'items_services_purchased' not in json_data:
                 json_data['items_services_purchased'] = []
 

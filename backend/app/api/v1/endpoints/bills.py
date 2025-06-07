@@ -34,12 +34,9 @@ async def analyze_bill_and_create_entry(
     
     temp_file_path = None
     try:
-        # Create temporary file with async file operations
         with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as temp_file:
             temp_file_path = temp_file.name
             content = await file.read()
-            
-        # Write file content asynchronously
         async with aiofiles.open(temp_file_path, 'wb') as f:
             await f.write(content)
         
@@ -57,7 +54,6 @@ async def analyze_bill_and_create_entry(
 
         bill_create_data.user_id = str(current_user.id)
         
-        # Fully async pattern - no bottlenecks
         db_bill = await bill_repository.create_with_items(db=db, bill_in=bill_create_data)
         return db_bill
         
@@ -73,7 +69,6 @@ async def analyze_bill_and_create_entry(
         )
     finally:
         if temp_file_path and os.path.exists(temp_file_path):
-            # Clean up temp file
             try:
                 os.unlink(temp_file_path)
             except OSError:

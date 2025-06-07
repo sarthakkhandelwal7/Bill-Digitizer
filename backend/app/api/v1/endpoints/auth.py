@@ -1,11 +1,15 @@
+import asyncio
+import time
 from datetime import timedelta
 from typing import Any
+import logging
+import httpx
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-import httpx
-import logging
 
-from app.schemas.user import User as UserSchema, UserCreate, Token, GoogleAuth
+from app.schemas.user import User as UserSchema, UserCreate
+from app.schemas.auth import Token, GoogleAuth
 from app.crud.crud_user import CRUDUser
 from app.api import deps
 from app.core import auth
@@ -13,7 +17,6 @@ from app.core.config import get_settings
 from app.db.models.user import User
 from app.db.session import get_database_session
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -62,7 +65,7 @@ async def google_auth(
     google_auth: GoogleAuth,
     user_crud: CRUDUser = Depends(deps.get_user_repository),
 ) -> Any:
-    """Verifies Google OAuth token and creates/updates user account"""
+    """Authenticate user with Google OAuth token and return JWT access token"""
     try:
         logger.info("=== Google OAuth Authentication Started ===")
         logger.info(f"Received token: {google_auth.access_token[:20]}...")
@@ -78,7 +81,6 @@ async def google_auth(
         idinfo = await verify_google_token_async(google_auth.access_token, settings.GOOGLE_CLIENT_ID)
         logger.info(f"Google token verification successful: {idinfo}")
         
-        # Convert Google's string booleans to Python booleans
         email_verified = convert_string_boolean(idinfo.get("email_verified", False))
         logger.info(f"Email verified: {email_verified}")
         
@@ -150,7 +152,6 @@ async def google_auth(
         logger.info("Creating access token...")
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         
-        # FIX: Pass dict with 'sub' key instead of just the user ID string
         token_data = {"sub": str(user.id)}
         logger.info(f"Token data: {token_data}")
         
@@ -181,7 +182,7 @@ async def google_auth(
 
 
 async def verify_google_token_async(token: str, client_id: str) -> dict:
-    """Async Google token verification using httpx instead of blocking requests"""
+    """Verify Google OAuth token asynchronously and return user info"""
     logger.info(f"Verifying Google token with client ID: {client_id}")
     url = f"https://oauth2.googleapis.com/tokeninfo?id_token={token}"
     
