@@ -58,7 +58,11 @@ class CRUDBill(CRUDBase[BillModel, BillCreateSchema, BillUpdateSchema]):
             except (ValueError, TypeError):
                 pass
         
-        bill_data = bill_in.model_dump(exclude={'items_services_purchased', 'user_id'})
+        # Filter incoming data to only include columns that exist in the Bill model
+        bill_data_from_schema = bill_in.model_dump(exclude={'items_services_purchased', 'user_id'})
+        valid_columns = {c.name for c in BillModel.__table__.columns}
+        bill_data = {k: v for k, v in bill_data_from_schema.items() if k in valid_columns}
+
         db_bill = BillModel(**bill_data, user_id=user_uuid)
         db.add(db_bill)
         await db.flush()

@@ -88,4 +88,67 @@ export const analyticsApi = {
   }
 };
 
+// Bill Search API functions
+export const billSearchApi = {
+  // Advanced search with filters
+  searchBills: async (params = {}) => {
+    const queryParams = new URLSearchParams();
+    
+    // Add all non-null/undefined parameters
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== null && value !== undefined && value !== '') {
+        queryParams.append(key, value);
+      }
+    });
+    
+    const response = await api.get(`/api/v1/bills/search?${queryParams.toString()}`);
+    return response.data;
+  },
+
+  // Get filter options for dropdowns
+  getFilterOptions: async () => {
+    const response = await api.get('/api/v1/bills/filters/options');
+    return response.data;
+  },
+
+  // Get predefined quick filters
+  getQuickFilters: async () => {
+    const response = await api.get('/api/v1/bills/quick-filters');
+    return response.data;
+  }
+};
+
+// Bill Categorization API functions
+export const billCategorizationApi = {
+  // Get available categories (public endpoint)
+  getCategories: async () => {
+    const response = await api.get('/api/v1/public/categories');
+    return response.data;
+  },
+
+  // Auto-categorize bills
+  autoCategorize: async (billIds = null) => {
+    const response = await api.post('/api/v1/bills/categorize/auto', billIds);
+    return response.data;
+  },
+
+  // Manually categorize bills
+  manualCategorize: async (assignments) => {
+    const response = await api.post('/api/v1/bills/categorize/manual', { assignments });
+    return response.data;
+  },
+
+  // Get category analysis
+  getCategoryAnalysis: async () => {
+    const response = await api.get('/api/v1/bills/categories/analysis');
+    return response.data;
+  },
+
+  // Get categorization suggestions
+  getSuggestions: async (limit = 20) => {
+    const response = await api.get(`/api/v1/bills/categories/suggestions?limit=${limit}`);
+    return response.data;
+  }
+};
+
 export default api; 

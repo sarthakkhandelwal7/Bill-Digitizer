@@ -7,6 +7,7 @@ import HomePage from './pages/HomePage';
 import BillsPage from './pages/BillsPage';
 import BillDetailPage from './pages/BillDetailPage';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
+import CategoryPage from './pages/CategoryPage';
 
 function App() {
   return (
@@ -30,6 +31,11 @@ function App() {
               <Route path="/analytics" element={
                 <ProtectedRoute>
                   <AnalyticsDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/categorize" element={
+                <ProtectedRoute>
+                  <CategoryPage />
                 </ProtectedRoute>
               } />
             </Routes>

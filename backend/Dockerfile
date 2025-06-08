@@ -50,4 +50,4 @@ EXPOSE 8000
 # The prestart.sh script will run migrations
 # Then uvicorn will start the FastAPI application
 # Using CMD to allow overriding from docker-compose
-CMD ["sh", "-c", "/app/prestart.sh && uvicorn app.main:app --host 0.0.0.0 --port 8000"] 
+CMD ["sh", "-c", "/app/prestart.sh && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/app"] 

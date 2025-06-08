@@ -1,8 +1,9 @@
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, func, text
+from sqlalchemy import select, and_, or_, func, text, String
 from datetime import datetime, timedelta
+from sqlalchemy.orm import selectinload
 
 from app.db.session import get_database_session
 from app.api.deps import get_current_user
@@ -34,17 +35,18 @@ async def search_bills(
     
     try:
         # Base query
-        query = select(Bill).where(Bill.user_id == str(current_user.id))
+        query = select(Bill).where(Bill.user_id == str(current_user.id)).options(selectinload(Bill.items))
         
         # Text search across multiple fields
         if q:
+            search_pattern = f"%{q}%"
             search_conditions = or_(
-                Bill.merchant_company_name.ilike(f"%{q}%"),
-                Bill.address.ilike(f"%{q}%"),
-                Bill.transaction_id.ilike(f"%{q}%"),
-                Bill.payment_method.ilike(f"%{q}%"),
-                Bill.other_info.ilike(f"%{q}%"),
-                func.cast(Bill.total_amount, text("TEXT")).ilike(f"%{q}%")
+                func.coalesce(Bill.merchant_company_name, '').ilike(search_pattern),
+                func.coalesce(Bill.address, '').ilike(search_pattern),
+                func.coalesce(Bill.transaction_id, '').ilike(search_pattern),
+                func.coalesce(Bill.payment_method, '').ilike(search_pattern),
+                func.coalesce(Bill.other_info, '').ilike(search_pattern),
+                Bill.total_amount.cast(String).ilike(search_pattern)
             )
             query = query.where(search_conditions)
         
@@ -241,16 +243,16 @@ async def get_quick_filters(
         thirty_result = await db.execute(thirty_query)
         thirty_data = thirty_result.first()
         
-        high_value_query = select(
-            func.percentile_cont(0.9).within_group(Bill.total_amount.asc())
-        ).where(
+        # Get approximate high value threshold (simple approach)
+        high_value_query = select(Bill.total_amount).where(
             and_(
                 Bill.user_id == str(current_user.id),
                 Bill.total_amount.isnot(None)
             )
-        )
+        ).order_by(Bill.total_amount.desc()).limit(10)
         high_value_result = await db.execute(high_value_query)
-        high_value_threshold = high_value_result.scalar() or 0
+        high_values = high_value_result.scalars().all()
+        high_value_threshold = min(high_values) if high_values else 100
         
         return {
             "quick_filters": [

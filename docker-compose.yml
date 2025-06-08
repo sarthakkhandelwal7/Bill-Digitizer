@@ -39,7 +39,7 @@ services:
             context: ./backend
             dockerfile: Dockerfile
         container_name: bill_digitizer_backend
-        command: sh -c "/app/prestart.sh && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+        command: sh -c "/app/prestart.sh && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/app"
         volumes:
             - ./backend:/app
         ports:
@@ -47,12 +47,7 @@ services:
         env_file:
             - ./backend/.env
         environment:
-            POSTGRES_SERVER: db
-            POSTGRES_USER: postgres
-            POSTGRES_PASSWORD: password
-            POSTGRES_DB: bill_digitizer_db
             POSTGRES_PORT: 5432
-            ACCESS_TOKEN_EXPIRE_MINUTES: 30
         depends_on:
             db:
                 condition: service_healthy
@@ -63,6 +58,7 @@ services:
             context: ./frontend
             dockerfile: Dockerfile
         container_name: bill_digitizer_frontend
+        command: npm start
         volumes:
             - ./frontend:/app
             - /app/node_modules

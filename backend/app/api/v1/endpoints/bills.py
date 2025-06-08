@@ -74,17 +74,6 @@ async def analyze_bill_and_create_entry(
             except OSError:
                 pass
 
-@router.get("", response_model=List[BillSchema])
-async def read_bills(
-    skip: int = 0,
-    limit: int = 100,
-    db: AsyncSession = Depends(get_database_session),
-    current_user: User = Depends(deps.get_current_active_user),
-    bill_repository: CRUDBill = Depends(deps.get_bill_repository)
-) -> List[BillSchema]:
-    bills = await bill_repository.get_multi_by_owner(db, owner_id=str(current_user.id), skip=skip, limit=limit)
-    return bills
-
 @router.get("/{bill_id}", response_model=BillSchema)
 async def read_bill(
     bill_id: str,

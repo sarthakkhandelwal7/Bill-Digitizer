@@ -192,6 +192,7 @@ async def get_available_categories() -> Dict[str, Any]:
     }
 
 
+
 @router.get("/categories/analysis")
 async def get_category_analysis(
     current_user: User = Depends(get_current_user),
