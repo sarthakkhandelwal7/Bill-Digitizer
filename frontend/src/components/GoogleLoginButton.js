@@ -98,7 +98,7 @@ const GoogleLoginButton = ({ onSuccess, onError }) => {
 
   const authenticateWithGoogle = async (idToken) => {
     try {
-      const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+      const API_BASE_URL = process.env.REACT_APP_API_URL || '';
       
       console.log('Sending ID token to backend:', `${API_BASE_URL}/api/v1/auth/google`);
       
