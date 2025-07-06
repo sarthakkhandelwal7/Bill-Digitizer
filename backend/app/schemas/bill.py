@@ -9,6 +9,7 @@ class LineItemBase(BaseModel):
     quantity: Optional[Union[int, float]] = None
     unit_price: Optional[Union[int, float]] = None
     total_price_per_item: Optional[Union[int, float]] = None
+    sheet_row_number: Optional[int] = None
 
 class LineItemCreate(LineItemBase):
     pass

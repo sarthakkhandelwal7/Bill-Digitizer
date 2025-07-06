@@ -32,6 +32,7 @@ function BillDetailPage() {
   const [saving, setSaving] = useState(false);
   const { user } = useAuth();
   const connected = !!user?.sheets_spreadsheet_id;
+  const needsExport = !bill?.exported_to_sheets;
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
@@ -124,6 +125,10 @@ function BillDetailPage() {
       // Clean up items data - remove id and bill_id as backend will regenerate them
       const cleanItems = items.map(item => {
         const { id, bill_id, ...cleanItem } = item;
+        // Preserve sheet_row_number if it exists, as backend needs it for Google Sheets sync
+        if (item.sheet_row_number !== undefined) {
+          cleanItem.sheet_row_number = item.sheet_row_number;
+        }
         return cleanItem;
       });
       
@@ -137,6 +142,8 @@ function BillDetailPage() {
       
       const response = await api.put(`/api/v1/bills/${id}`, dataToSend);
       setBill(response.data);
+      // Immediately pull fresh data from server to ensure UI/row numbers are up-to-date
+      await fetchBill();
       setIsEditing(false);
       setEditedBill(null);
     } catch (err) {
@@ -465,14 +472,14 @@ function BillDetailPage() {
           </div>
         </div>
       </div>
-      {connected && !bill.exported_to_sheets && !isEditing && (
+      {connected && needsExport && !isEditing && (
         <button
           onClick={async () => {
             try {
               setExporting(true);
               await googleSheetsApi.exportBill(bill.id);
               alert('Bill exported to Google Sheets');
-              fetchBill();
+              await fetchBill();
             } catch (err) {
               console.error(err);
               alert('Failed to export bill');

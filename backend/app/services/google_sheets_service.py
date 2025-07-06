@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import httpx
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -148,6 +149,10 @@ class GoogleSheetsService:
                     json=body,
                     headers={"Authorization": f"Bearer {access_token}"},
                 )
+                logging.getLogger(__name__).info(
+                    "PUT row %s – status %s – body %s",
+                    row_num, resp.status_code, resp.text[:200],
+                )
                 outcomes[row_num] = resp.status_code in (200, 201)
         return outcomes
 
@@ -192,7 +197,6 @@ class GoogleSheetsService:
             )
         except Exception as e:
             # Not fatal; log but proceed
-            import logging
             logging.getLogger(__name__).warning("Failed to append header row: %s", e)
 
         # Store for user if not set
@@ -202,4 +206,22 @@ class GoogleSheetsService:
                 db_obj=user,
                 obj_in={"sheets_spreadsheet_id": spreadsheet_id},
             )
-        return spreadsheet_id 
+        return spreadsheet_id
+
+    async def get_row_values(
+        self,
+        access_token: str,
+        spreadsheet_id: str,
+        row_number: int,
+        major_dimension: str = "ROWS",
+    ) -> List[Any]:
+        """Fetch values for a single row. Returns empty list if not found."""
+        range_ = f"A{row_number}:L{row_number}"
+        url = f"{SHEETS_BASE_URL}/{spreadsheet_id}/values/{range_}"
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.get(url, headers={"Authorization": f"Bearer {access_token}"})
+        if resp.status_code != 200:
+            return []
+        data = resp.json()
+        values = data.get("values", [])
+        return values[0] if values else [] 

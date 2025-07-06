@@ -3,9 +3,10 @@ from fastapi.responses import JSONResponse
 import tempfile
 import os
 import aiofiles
-from typing import List
+from typing import List, Dict
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
+import logging
 
 from app.schemas.bill import Bill as BillSchema, BillCreate as BillCreateSchema
 from app.services.bill_analyzer import BillAnalyzer
@@ -100,57 +101,110 @@ async def update_bill(
     gs_service: GoogleSheetsService = Depends(get_google_sheets_service),
     user_crud: CRUDUser = Depends(deps.get_user_repository),
 ) -> BillSchema:
+    import logging
+    logging.getLogger(__name__).info("Received bill update data: %s", bill_update.model_dump())
     db_bill = await bill_repository.get(db, id=bill_id)
     if db_bill is None or str(db_bill.user_id) != str(current_user.id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bill not found")
     
-    updated_bill = await bill_repository.update_with_items(db=db, db_obj=db_bill, obj_in=bill_update)
-    if updated_bill.exported_to_sheets:
+    # Capture current values of each row before mutation for diffing later
+    def _build_row_values(bill_obj, item_obj):
+        """Helper – build Google-Sheets row array from bill + item objects."""
+        bill_date_local = bill_obj.date or bill_obj.created_at.date().isoformat()
+        bill_time_local = bill_obj.time or ""
+        return [
+            bill_date_local,
+            bill_time_local,
+            bill_obj.merchant_company_name or "",
+            item_obj.description or "",
+            item_obj.quantity or 1,
+            item_obj.unit_price or item_obj.total_price_per_item or 0,
+            item_obj.total_price_per_item or (item_obj.quantity or 1) * (item_obj.unit_price or 0),
+            bill_obj.subtotal or 0,
+            bill_obj.tax or 0,
+            bill_obj.discount_savings or 0,
+            bill_obj.total_amount or 0,
+            bill_obj.payment_method or "",
+        ]
+
+    old_row_snap: Dict[int, List] = {}
+    if db_bill.exported_to_sheets:
+        logging.getLogger(__name__).info("Bill %s is exported_to_sheets, capturing old snapshot", bill_id)
+        for it in db_bill.items:
+            if it.sheet_row_number:
+                old_row_snap[it.sheet_row_number] = _build_row_values(db_bill, it)
+                logging.getLogger(__name__).info("Captured old row %s: %s", it.sheet_row_number, old_row_snap[it.sheet_row_number])
+        logging.getLogger(__name__).info("Old snapshot complete: %s rows captured", len(old_row_snap))
+
+    # Perform DB update (this commits internally)
+    logging.getLogger(__name__).info("About to update bill. Items before update:")
+    for it in db_bill.items:
+        logging.getLogger(__name__).info("  Item %s: description='%s' sheet_row_number=%s", it.id, it.description, it.sheet_row_number)
+    
+    await bill_repository.update_with_items(db=db, db_obj=db_bill, obj_in=bill_update)
+    
+    # Build updated bill data from the input payload (no extra DB call needed)
+    # Update bill fields from input
+    bill_data = bill_update.model_dump(exclude={'items_services_purchased', 'user_id'})
+    for field, value in bill_data.items():
+        if value is not None:
+            setattr(db_bill, field, value)
+    
+    logging.getLogger(__name__).info("After update. Items from input payload:")
+    for item_data in bill_update.items_services_purchased:
+        logging.getLogger(__name__).info("  Item payload: description='%s' sheet_row_number=%s", item_data.description, item_data.sheet_row_number)
+
+    # After update, decide what needs to be sent to Sheets
+    if db_bill.exported_to_sheets:
+        logging.getLogger(__name__).info("Bill %s is still exported_to_sheets, checking for changes", bill_id)
         access_token = await gs_service._refresh_access_token_if_needed(db, current_user, user_crud)
 
-        row_updates = {}
-        new_items = []
-        bill_date = updated_bill.date or updated_bill.created_at.date().isoformat()
-        bill_time = updated_bill.time or ""
-        for item in updated_bill.items:
-            row_values = [
-                bill_date,
-                bill_time,
-                updated_bill.merchant_company_name or "",
-                item.description or "",
-                item.quantity or 1,
-                item.unit_price or item.total_price_per_item or 0,
-                item.total_price_per_item or (item.quantity or 1) * (item.unit_price or 0),
-                updated_bill.subtotal or 0,
-                updated_bill.tax or 0,
-                updated_bill.discount_savings or 0,
-                updated_bill.total_amount or 0,
-                updated_bill.payment_method or "",
+        diff_row_updates: Dict[int, List] = {}
+        missing_items: List[str] = []
+
+        # Use the input payload items instead of querying DB
+        for item_data in bill_update.items_services_purchased:
+            if not item_data.sheet_row_number:
+                missing_items.append("unknown_id")  # We don't have the new ID, but that's ok for logging
+                continue
+
+            # Build new values from the updated bill + item payload
+            new_values = [
+                db_bill.date or db_bill.created_at.date().isoformat(),
+                db_bill.time or "",
+                db_bill.merchant_company_name or "",
+                item_data.description or "",
+                item_data.quantity or 1,
+                item_data.unit_price or item_data.total_price_per_item or 0,
+                item_data.total_price_per_item or (item_data.quantity or 1) * (item_data.unit_price or 0),
+                db_bill.subtotal or 0,
+                db_bill.tax or 0,
+                db_bill.discount_savings or 0,
+                db_bill.total_amount or 0,
+                db_bill.payment_method or "",
             ]
-            if item.sheet_row_number:
-                row_updates[item.sheet_row_number] = row_values
-            else:
-                new_items.append((item, row_values))
-
-        outcomes = await gs_service.update_rows(access_token, current_user.sheets_spreadsheet_id, row_updates)
-
-        # Append new items
-        if new_items:
-            append_result = await gs_service.append_rows(
-                db,
-                current_user,
-                user_crud,
-                spreadsheet_id=current_user.sheets_spreadsheet_id,
-                values=[rv for (_, rv) in new_items],
-                range_="A1",
+            old_values = old_row_snap.get(item_data.sheet_row_number)
+            logging.getLogger(__name__).info(
+                "Row %s comparison: old=%s new=%s equal=%s", 
+                item_data.sheet_row_number, old_values, new_values, old_values == new_values
             )
-            sr = append_result.get("start_row_number")
-            if sr is not None:
-                for offset, (item, _) in enumerate(new_items):
-                    item.sheet_row_number = sr + offset
+            # If row didn't exist before or values changed, include in diff
+            if old_values is None or new_values != old_values:
+                logging.getLogger(__name__).info("Row %s CHANGE DETECTED", item_data.sheet_row_number)
+                diff_row_updates[item_data.sheet_row_number] = new_values
+
+        logging.getLogger(__name__).info("Diff complete: %s rows to update", len(diff_row_updates))
+        if diff_row_updates:
+            await gs_service.update_rows(access_token, current_user.sheets_spreadsheet_id, diff_row_updates)
+
+        if missing_items:
+            logging.getLogger(__name__).info(
+                "Line items not synced to Sheets due to missing row numbers: %s", missing_items
+            )
+
         await db.commit()
 
-    return updated_bill 
+    return db_bill 
 
 @router.post("/{bill_id}/export-to-sheets", status_code=status.HTTP_200_OK)
 async def export_bill_to_google_sheets(

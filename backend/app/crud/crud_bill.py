@@ -78,6 +78,9 @@ class CRUDBill(CRUDBase[BillModel, BillCreateSchema, BillUpdateSchema]):
         
         await db.commit()
         
+        # Clear the session to avoid stale data issues
+        db.expunge_all()
+        
         # Eagerly load the items relationship to prevent lazy loading issues
         result = await db.execute(
             select(BillModel)
@@ -105,6 +108,9 @@ class CRUDBill(CRUDBase[BillModel, BillCreateSchema, BillUpdateSchema]):
                 db.add(db_item)
         
         await db.commit()
+        
+        # Clear the session to avoid stale data issues
+        db.expunge_all()
         
         # Eagerly load the items relationship to prevent lazy loading issues
         result = await db.execute(
@@ -166,7 +172,7 @@ class CRUDBill(CRUDBase[BillModel, BillCreateSchema, BillUpdateSchema]):
             return []
 
 
-# Professional instantiation - no amateur naming
+
 bill = CRUDBill(BillModel)
 
  
