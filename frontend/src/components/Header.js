@@ -1,12 +1,32 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Receipt, List, Home, User, LogOut, BarChart3, Plug } from 'lucide-react';
+import { Receipt, List, Home, User, LogOut, BarChart3, Settings, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import GoogleLoginButton from './GoogleLoginButton';
 
 function Header() {
   const location = useLocation();
   const { user, loading, logout, isAuthenticated } = useAuth();
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowUserDropdown(false);
+      }
+    };
+
+    if (showUserDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showUserDropdown]);
 
   const isActive = (path) => {
     return location.pathname === path;
@@ -69,18 +89,6 @@ function Header() {
                   <BarChart3 className="h-4 w-4" />
                   <span>Analytics</span>
                 </Link>
-
-                <Link
-                  to="/integrations"
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive('/integrations') 
-                      ? 'text-primary-600 bg-primary-50' 
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`}
-                >
-                  <Plug className="h-4 w-4" />
-                  <span>Integrations</span>
-                </Link>
               </>
             )}
 
@@ -89,20 +97,42 @@ function Header() {
               {loading ? (
                 <div className="text-sm text-gray-500">Loading...</div>
               ) : isAuthenticated ? (
-                <div className="flex items-center space-x-3">
-                  <div className="flex items-center space-x-2">
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setShowUserDropdown(!showUserDropdown)}
+                    className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                  >
                     <User className="h-4 w-4 text-gray-600" />
                     <span className="text-sm text-gray-700">
                       {user?.full_name || user?.email || 'User'}
                     </span>
-                  </div>
-                  <button
-                    onClick={logout}
-                    className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    <span>Logout</span>
+                    <ChevronDown className="h-4 w-4 text-gray-600" />
                   </button>
+                  
+                  {showUserDropdown && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                      <div className="py-1">
+                        <Link
+                          to="/settings"
+                          className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => setShowUserDropdown(false)}
+                        >
+                          <Settings className="h-4 w-4" />
+                          <span>Settings</span>
+                        </Link>
+                        <button
+                          onClick={() => {
+                            logout();
+                            setShowUserDropdown(false);
+                          }}
+                          className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          <span>Logout</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="flex items-center">

@@ -8,7 +8,7 @@ import BillsPage from './pages/BillsPage';
 import BillDetailPage from './pages/BillDetailPage';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import CategoryPage from './pages/CategoryPage';
-import IntegrationsPage from './pages/IntegrationsPage';
+import UserSettingsPage from './pages/UserSettingsPage';
 
 function App() {
   return (
@@ -39,9 +39,9 @@ function App() {
                   <CategoryPage />
                 </ProtectedRoute>
               } />
-              <Route path="/integrations" element={
+              <Route path="/settings" element={
                 <ProtectedRoute>
-                  <IntegrationsPage />
+                  <UserSettingsPage />
                 </ProtectedRoute>
               } />
             </Routes>
