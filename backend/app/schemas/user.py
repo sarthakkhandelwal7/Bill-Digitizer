@@ -36,6 +36,11 @@ class UserBase(BaseModel):
     is_verified: Optional[bool] = False
     email_verified: Optional[bool] = False
     google_verified_email: Optional[bool] = False
+    google_access_token: Optional[str] = None
+    google_refresh_token: Optional[str] = None
+    google_token_expiry: Optional[datetime] = None
+    sheets_spreadsheet_id: Optional[str] = None
+    auto_export_to_sheets: Optional[bool] = False
 
 class UserCreate(BaseModel):
     """Schema for creating a user"""

@@ -151,4 +151,32 @@ export const billCategorizationApi = {
   }
 };
 
+// --- Google Sheets Integration API ---
+export const googleSheetsApi = {
+  connect: async (code, redirectUri) => {
+    const response = await api.post('/api/v1/integrations/google-sheets/connect', {
+      code,
+      redirect_uri: redirectUri,
+    });
+    return response.data;
+  },
+  createSheet: async (title = 'Expenses', sheetTitle = 'Expenses') => {
+    const response = await api.post('/api/v1/integrations/google-sheets/create-sheet', {
+      title,
+      sheet_title: sheetTitle,
+    });
+    return response.data;
+  },
+  updateSettings: async (autoExport) => {
+    const response = await api.put('/api/v1/integrations/google-sheets/settings', {
+      auto_export_to_sheets: autoExport,
+    });
+    return response.data;
+  },
+  exportBill: async (billId) => {
+    const response = await api.post(`/api/v1/bills/${billId}/export-to-sheets`);
+    return response.data;
+  },
+};
+
 export default api; 

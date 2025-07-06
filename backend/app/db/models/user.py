@@ -43,6 +43,13 @@ class User(Base):
     google_id = Column(String, unique=True, index=True, nullable=True)
     google_verified_email = Column(Boolean, default=False)
     
+    # Google Sheets integration fields
+    google_access_token = Column(Text, nullable=True)
+    google_refresh_token = Column(Text, nullable=True)
+    google_token_expiry = Column(DateTime(timezone=True), nullable=True)
+    sheets_spreadsheet_id = Column(String, nullable=True)
+    auto_export_to_sheets = Column(Boolean, default=False)
+    
     # Account status
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)

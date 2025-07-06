@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Receipt, List, Home, User, LogOut, BarChart3 } from 'lucide-react';
+import { Receipt, List, Home, User, LogOut, BarChart3, Plug } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import GoogleLoginButton from './GoogleLoginButton';
 
@@ -68,6 +68,18 @@ function Header() {
                 >
                   <BarChart3 className="h-4 w-4" />
                   <span>Analytics</span>
+                </Link>
+
+                <Link
+                  to="/integrations"
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/integrations') 
+                      ? 'text-primary-600 bg-primary-50' 
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  <Plug className="h-4 w-4" />
+                  <span>Integrations</span>
                 </Link>
               </>
             )}

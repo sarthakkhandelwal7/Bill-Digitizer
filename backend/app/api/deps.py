@@ -9,6 +9,7 @@ from app.core.config import get_settings
 from app.crud.crud_user import CRUDUser
 from app.crud.crud_bill import CRUDBill
 from app.services.analytics_service import AnalyticsService
+from app.services.google_sheets_service import GoogleSheetsService
 from app.db.models.user import User
 from app.db.models.bill import Bill
 from app.db.session import get_database_session
@@ -30,6 +31,11 @@ def get_bill_repository() -> CRUDBill:
 def get_analytics_service() -> AnalyticsService:
     """Get analytics service instance"""
     return AnalyticsService()
+
+
+def get_google_sheets_service() -> GoogleSheetsService:
+    """Get Google Sheets service instance"""
+    return GoogleSheetsService()
 
 
 async def get_current_user(

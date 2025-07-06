@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, DateTime
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID
@@ -40,6 +40,9 @@ class Bill(Base):
     owner = relationship("User", back_populates="bills")
     bill_categories = relationship("BillCategory", back_populates="bill", cascade="all, delete-orphan")
 
+    exported_to_sheets = Column(Boolean, nullable=False, server_default='false')
+    exported_at = Column(DateTime(timezone=True), nullable=True)
+
 class LineItem(Base):
     __tablename__ = "line_items"
 
@@ -55,4 +58,6 @@ class LineItem(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
-    bill = relationship("Bill", back_populates="items") 
+    bill = relationship("Bill", back_populates="items")
+
+    sheet_row_number = Column(Integer, nullable=True) 

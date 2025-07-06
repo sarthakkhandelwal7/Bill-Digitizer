@@ -8,6 +8,7 @@ from app.api.v1.endpoints import (
     bills_categorization,
     bills_search,
     public,
+    google_sheets,
 )
 
 api_router = APIRouter()
@@ -27,4 +28,7 @@ api_router.include_router(public.router, prefix="/public", tags=["public"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(
     analytics_enhanced.router, prefix="/analytics/v2", tags=["analytics-enhanced"]
-) 
+)
+
+# Google Sheets integration routes
+api_router.include_router(google_sheets.router, prefix="/integrations/google-sheets", tags=["integrations"]) 

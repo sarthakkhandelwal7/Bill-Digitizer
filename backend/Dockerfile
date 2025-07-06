@@ -1,7 +1,7 @@
 # backend/Dockerfile
 
 # 1. Use an official Python runtime as a parent image
-FROM python:3.9-slim as builder
+FROM python:3.12-slim as builder
 
 # 2. Set environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
@@ -26,12 +26,12 @@ RUN poetry config virtualenvs.create false && \
     poetry install --no-root --no-dev --compile
 
 # Create a new stage for the final image from a clean base
-FROM python:3.9-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
 # Copy the installed dependencies from the builder stage
-COPY --from=builder /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin/ /usr/local/bin/
 
 # Copy the prestart script and make it executable

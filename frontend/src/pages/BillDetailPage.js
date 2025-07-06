@@ -19,6 +19,8 @@ import {
   Trash2
 } from 'lucide-react';
 import api from '../utils/api';
+import { useAuth } from '../context/AuthContext';
+import { googleSheetsApi } from '../utils/api';
 
 function BillDetailPage() {
   const { id } = useParams();
@@ -28,6 +30,9 @@ function BillDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editedBill, setEditedBill] = useState(null);
   const [saving, setSaving] = useState(false);
+  const { user } = useAuth();
+  const connected = !!user?.sheets_spreadsheet_id;
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     fetchBill();
@@ -460,6 +465,32 @@ function BillDetailPage() {
           </div>
         </div>
       </div>
+      {connected && !bill.exported_to_sheets && !isEditing && (
+        <button
+          onClick={async () => {
+            try {
+              setExporting(true);
+              await googleSheetsApi.exportBill(bill.id);
+              alert('Bill exported to Google Sheets');
+              fetchBill();
+            } catch (err) {
+              console.error(err);
+              alert('Failed to export bill');
+            } finally {
+              setExporting(false);
+            }
+          }}
+          disabled={exporting}
+          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+        >
+          {exporting ? (
+            <Loader className="h-4 w-4 animate-spin" />
+          ) : (
+            <FileText className="h-4 w-4" />
+          )}
+          <span>{exporting ? 'Exporting...' : 'Export to Sheets'}</span>
+        </button>
+      )}
     </div>
   );
 }

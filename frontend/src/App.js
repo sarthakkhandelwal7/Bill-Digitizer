@@ -8,6 +8,7 @@ import BillsPage from './pages/BillsPage';
 import BillDetailPage from './pages/BillDetailPage';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import CategoryPage from './pages/CategoryPage';
+import IntegrationsPage from './pages/IntegrationsPage';
 
 function App() {
   return (
@@ -36,6 +37,11 @@ function App() {
               <Route path="/categorize" element={
                 <ProtectedRoute>
                   <CategoryPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/integrations" element={
+                <ProtectedRoute>
+                  <IntegrationsPage />
                 </ProtectedRoute>
               } />
             </Routes>

@@ -63,6 +63,8 @@ class BillInDBBase(BillBase):
     user_id: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+    exported_to_sheets: Optional[bool] = False
+    exported_at: Optional[datetime] = None
     
     @validator('id', 'user_id', pre=True)
     def convert_uuid_to_string(cls, v):
