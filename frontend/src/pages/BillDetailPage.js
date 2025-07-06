@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
   Calendar, 
@@ -20,16 +20,18 @@ import {
 } from 'lucide-react';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import { googleSheetsApi } from '../utils/api';
+import { googleSheetsApi, billApi } from '../utils/api';
 
 function BillDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [bill, setBill] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedBill, setEditedBill] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const { user } = useAuth();
   const connected = !!user?.sheets_spreadsheet_id;
   const needsExport = !bill?.exported_to_sheets;
@@ -154,6 +156,23 @@ function BillDetailPage() {
     }
   };
 
+  const deleteBill = async () => {
+    if (!window.confirm('Are you sure you want to delete this bill? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      await billApi.deleteBill(id);
+      navigate('/bills');
+    } catch (err) {
+      setError('Failed to delete bill. Please try again.');
+      console.error('Error deleting bill:', err);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto">
@@ -219,13 +238,27 @@ function BillDetailPage() {
               </button>
             </>
           ) : (
-            <button
-              onClick={startEditing}
-              className="flex items-center space-x-2 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors"
-            >
-              <Edit3 className="h-4 w-4" />
-              <span>Edit</span>
-            </button>
+            <>
+              <button
+                onClick={startEditing}
+                className="flex items-center space-x-2 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors"
+              >
+                <Edit3 className="h-4 w-4" />
+                <span>Edit</span>
+              </button>
+              <button
+                onClick={deleteBill}
+                disabled={deleting}
+                className="flex items-center space-x-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {deleting ? (
+                  <Loader className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                <span>{deleting ? 'Deleting...' : 'Delete'}</span>
+              </button>
+            </>
           )}
         </div>
       </div>

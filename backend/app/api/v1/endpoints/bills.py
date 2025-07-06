@@ -163,6 +163,34 @@ async def update_bill(
 
         diff_item_updates: Dict[str, List] = {}
         missing_items: List[str] = []
+        
+        # Get all new item IDs for comparison
+        new_item_ids = set()
+        for item_data in bill_update.items_services_purchased:
+            if item_data.sheet_item_id:
+                new_item_ids.add(item_data.sheet_item_id)
+
+        # Find deleted items (items that were in old snapshot but not in new payload)
+        old_item_ids = set(old_item_snap.keys())
+        deleted_item_ids = old_item_ids - new_item_ids
+        
+        if deleted_item_ids:
+            logging.getLogger(__name__).info("Detected %s deleted items: %s", len(deleted_item_ids), deleted_item_ids)
+            try:
+                delete_results = await gs_service.delete_rows_by_id(
+                    access_token,
+                    current_user.sheets_spreadsheet_id,
+                    list(deleted_item_ids)
+                )
+                logging.getLogger(__name__).info("Google Sheets deletion results: %s", delete_results)
+                
+                # Check if any deletions failed
+                failed_deletions = [item_id for item_id, success in delete_results.items() if not success]
+                if failed_deletions:
+                    logging.getLogger(__name__).warning("Failed to delete items from Google Sheets: %s", failed_deletions)
+            except Exception as e:
+                logging.getLogger(__name__).error("Error deleting items from Google Sheets: %s", str(e))
+                # Continue with updates even if deletion fails
 
         # Use the input payload items instead of querying DB
         for item_data in bill_update.items_services_purchased:
@@ -292,4 +320,60 @@ async def export_bill_to_google_sheets(
     db_bill.exported_at = datetime.now(timezone.utc)
     await db.commit()
 
-    return JSONResponse({"success": True, "spreadsheet_id": spreadsheet_id}) 
+    return JSONResponse({"success": True, "spreadsheet_id": spreadsheet_id})
+
+@router.delete("/{bill_id}", status_code=status.HTTP_200_OK)
+async def delete_bill(
+    bill_id: str,
+    db: AsyncSession = Depends(get_database_session),
+    current_user: User = Depends(deps.get_current_active_user),
+    bill_repository: CRUDBill = Depends(deps.get_bill_repository),
+    user_crud: CRUDUser = Depends(deps.get_user_repository),
+    gs_service: GoogleSheetsService = Depends(get_google_sheets_service),
+) -> JSONResponse:
+    """Delete a bill and remove its items from Google Sheets if exported."""
+    import logging
+    
+    # Get the bill with its line items
+    db_bill = await bill_repository.get(db, id=bill_id)
+    if db_bill is None or str(db_bill.user_id) != str(current_user.id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bill not found")
+    
+    # If the bill was exported to sheets, remove the rows from Google Sheets
+    if db_bill.exported_to_sheets and current_user.sheets_spreadsheet_id:
+        logging.getLogger(__name__).info("Bill %s was exported to sheets, removing from Google Sheets", bill_id)
+        
+        # Collect all sheet item IDs
+        sheet_item_ids = []
+        for item in db_bill.items:
+            if item.sheet_item_id:
+                sheet_item_ids.append(item.sheet_item_id)
+        
+        if sheet_item_ids:
+            logging.getLogger(__name__).info("Removing %s items from Google Sheets: %s", len(sheet_item_ids), sheet_item_ids)
+            try:
+                access_token = await gs_service._refresh_access_token_if_needed(db, current_user, user_crud)
+                delete_results = await gs_service.delete_rows_by_id(
+                    access_token,
+                    current_user.sheets_spreadsheet_id,
+                    sheet_item_ids
+                )
+                logging.getLogger(__name__).info("Google Sheets deletion results: %s", delete_results)
+                
+                # Check if any deletions failed
+                failed_deletions = [item_id for item_id, success in delete_results.items() if not success]
+                if failed_deletions:
+                    logging.getLogger(__name__).warning("Failed to delete items from Google Sheets: %s", failed_deletions)
+                    # Note: We continue with database deletion even if Google Sheets deletion fails
+                    # This prevents orphaned data in the database
+            except Exception as e:
+                logging.getLogger(__name__).error("Error deleting items from Google Sheets: %s", str(e))
+                # Continue with database deletion even if Google Sheets deletion fails
+    
+    # Delete the bill from the database
+    deleted_bill = await bill_repository.remove(db, id=bill_id)
+    if deleted_bill is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bill not found")
+    
+    logging.getLogger(__name__).info("Successfully deleted bill %s", bill_id)
+    return JSONResponse({"success": True, "message": "Bill deleted successfully"}) 

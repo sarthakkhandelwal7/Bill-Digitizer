@@ -179,4 +179,12 @@ export const googleSheetsApi = {
   },
 };
 
+// Bill management API functions
+export const billApi = {
+  deleteBill: async (billId) => {
+    const response = await api.delete(`/api/v1/bills/${billId}`);
+    return response.data;
+  },
+};
+
 export default api; 

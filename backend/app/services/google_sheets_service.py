@@ -233,6 +233,102 @@ class GoogleSheetsService:
         logging.getLogger(__name__).info("update_rows_by_id completed with outcomes: %s", outcomes)
         return outcomes
 
+    async def delete_rows_by_id(
+        self,
+        access_token: str,
+        spreadsheet_id: str,
+        item_ids: List[str],
+    ) -> Dict[str, bool]:
+        """Delete rows by finding them by ID first. Returns dict item_id -> success bool."""
+        logging.getLogger(__name__).info("Starting delete_rows_by_id for %s items", len(item_ids))
+        outcomes: Dict[str, bool] = {}
+        
+        # First, find all row numbers for the given item IDs
+        rows_to_delete = []
+        for item_id in item_ids:
+            logging.getLogger(__name__).info("Finding row for item ID %s", item_id)
+            row_num = await self.find_row_by_id(access_token, spreadsheet_id, item_id)
+            
+            if row_num is None:
+                logging.getLogger(__name__).warning("Item ID %s not found in spreadsheet", item_id)
+                outcomes[item_id] = False
+                continue
+            
+            rows_to_delete.append((item_id, row_num))
+            logging.getLogger(__name__).info("Found item ID %s at row %s", item_id, row_num)
+        
+        # Sort by row number in descending order to avoid index shifting issues
+        rows_to_delete.sort(key=lambda x: x[1], reverse=True)
+        
+        # Get sheet ID for batchUpdate requests
+        sheet_id = await self._get_sheet_id(access_token, spreadsheet_id)
+        if sheet_id is None:
+            logging.getLogger(__name__).error("Could not get sheet ID for spreadsheet %s", spreadsheet_id)
+            for item_id in item_ids:
+                outcomes[item_id] = False
+            return outcomes
+        
+        # Delete rows using batchUpdate
+        delete_requests = []
+        for item_id, row_num in rows_to_delete:
+            delete_requests.append({
+                "deleteDimension": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "dimension": "ROWS",
+                        "startIndex": row_num - 1,  # Convert to 0-based index
+                        "endIndex": row_num,        # Exclusive end
+                    }
+                }
+            })
+        
+        if delete_requests:
+            url = f"{SHEETS_BASE_URL}/{spreadsheet_id}:batchUpdate"
+            body = {"requests": delete_requests}
+            
+            async with httpx.AsyncClient(timeout=20) as client:
+                resp = await client.post(
+                    url,
+                    json=body,
+                    headers={"Authorization": f"Bearer {access_token}"},
+                )
+            
+            logging.getLogger(__name__).info(
+                "DELETE batch request – status %s – body %s",
+                resp.status_code, resp.text[:200],
+            )
+            
+            if resp.status_code in (200, 201):
+                for item_id, _ in rows_to_delete:
+                    outcomes[item_id] = True
+            else:
+                for item_id, _ in rows_to_delete:
+                    outcomes[item_id] = False
+        
+        logging.getLogger(__name__).info("delete_rows_by_id completed with outcomes: %s", outcomes)
+        return outcomes
+
+    async def _get_sheet_id(
+        self,
+        access_token: str,
+        spreadsheet_id: str,
+    ) -> Optional[int]:
+        """Get the sheet ID for the first sheet in the spreadsheet."""
+        url = f"{SHEETS_BASE_URL}/{spreadsheet_id}"
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.get(url, headers={"Authorization": f"Bearer {access_token}"})
+        
+        if resp.status_code != 200:
+            logging.getLogger(__name__).warning("Failed to get spreadsheet info: %s", resp.text)
+            return None
+        
+        data = resp.json()
+        sheets = data.get("sheets", [])
+        if not sheets:
+            return None
+        
+        return sheets[0]["properties"]["sheetId"]
+
     async def create_spreadsheet(
         self,
         db: AsyncSession,
