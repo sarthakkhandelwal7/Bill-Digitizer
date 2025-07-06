@@ -125,9 +125,9 @@ function BillDetailPage() {
       // Clean up items data - remove id and bill_id as backend will regenerate them
       const cleanItems = items.map(item => {
         const { id, bill_id, ...cleanItem } = item;
-        // Preserve sheet_row_number if it exists, as backend needs it for Google Sheets sync
-        if (item.sheet_row_number !== undefined) {
-          cleanItem.sheet_row_number = item.sheet_row_number;
+        // Preserve sheet_item_id if it exists, as backend needs it for Google Sheets sync
+        if (item.sheet_item_id !== undefined) {
+          cleanItem.sheet_item_id = item.sheet_item_id;
         }
         return cleanItem;
       });

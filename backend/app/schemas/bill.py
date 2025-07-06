@@ -9,7 +9,8 @@ class LineItemBase(BaseModel):
     quantity: Optional[Union[int, float]] = None
     unit_price: Optional[Union[int, float]] = None
     total_price_per_item: Optional[Union[int, float]] = None
-    sheet_row_number: Optional[int] = None
+    # Google Sheets unique identifier for this item (uses item UUID)
+    sheet_item_id: Optional[str] = None
 
 class LineItemCreate(LineItemBase):
     pass

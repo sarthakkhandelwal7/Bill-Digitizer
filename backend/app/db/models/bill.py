@@ -60,4 +60,5 @@ class LineItem(Base):
     # Relationships
     bill = relationship("Bill", back_populates="items")
 
-    sheet_row_number = Column(Integer, nullable=True) 
+    # Google Sheets unique identifier for this item (uses item UUID)
+    sheet_item_id = Column(String, nullable=True) 

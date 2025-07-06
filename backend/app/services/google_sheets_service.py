@@ -26,6 +26,7 @@ HEADER_ROW = [
     "Discount",
     "Grand Total",
     "Payment Method",
+    "ID",  # Hidden unique identifier column (last column to avoid user curiosity)
 ]
 
 class GoogleSheetsService:
@@ -139,7 +140,7 @@ class GoogleSheetsService:
         outcomes: Dict[int, bool] = {}
         async with httpx.AsyncClient(timeout=20) as client:
             for row_num, row_values in row_updates.items():
-                range_ = f"A{row_num}:L{row_num}"
+                range_ = f"A{row_num}:M{row_num}"  # Now includes ID column (A-M instead of A-L)
                 url = f"{SHEETS_BASE_URL}/{spreadsheet_id}/values/{range_}"
                 params = {"valueInputOption": value_input_option}
                 body = {"values": [row_values]}
@@ -156,6 +157,82 @@ class GoogleSheetsService:
                 outcomes[row_num] = resp.status_code in (200, 201)
         return outcomes
 
+    async def find_row_by_id(
+        self,
+        access_token: str,
+        spreadsheet_id: str,
+        item_id: str,
+    ) -> Optional[int]:
+        """Find the row number for a given item ID. Returns None if not found."""
+        logging.getLogger(__name__).info("Searching for item ID %s in spreadsheet %s", item_id, spreadsheet_id)
+        url = f"{SHEETS_BASE_URL}/{spreadsheet_id}/values/M:M"  # Get all values in column M (ID column - last column)
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.get(url, headers={"Authorization": f"Bearer {access_token}"})
+        
+        logging.getLogger(__name__).info("GET column M response: status=%s", resp.status_code)
+        if resp.status_code != 200:
+            logging.getLogger(__name__).warning("Failed to get column M: %s", resp.text)
+            return None
+            
+        data = resp.json()
+        values = data.get("values", [])
+        logging.getLogger(__name__).info("Found %s rows in column M", len(values))
+        
+        # Find the row containing our item_id (skip header row at index 0)
+        for row_index, row_data in enumerate(values[1:], start=2):  # Start at row 2 (index 1 + 1)
+            logging.getLogger(__name__).info("Row %s data: %s", row_index, row_data)
+            if row_data and len(row_data) > 0 and row_data[0] == item_id:
+                logging.getLogger(__name__).info("Found item ID %s at row %s", item_id, row_index)
+                return row_index
+        
+        logging.getLogger(__name__).warning("Item ID %s not found in any row", item_id)
+        return None
+
+    async def update_rows_by_id(
+        self,
+        access_token: str,
+        spreadsheet_id: str,
+        id_updates: Dict[str, List[Any]],
+        value_input_option: str = "USER_ENTERED",
+    ) -> Dict[str, bool]:
+        """Update rows by finding them by ID first. Returns dict item_id -> success bool."""
+        logging.getLogger(__name__).info("Starting update_rows_by_id for %s items", len(id_updates))
+        outcomes: Dict[str, bool] = {}
+        
+        for item_id, row_values in id_updates.items():
+            logging.getLogger(__name__).info("Processing item ID %s with values: %s", item_id, row_values)
+            # Find the current row for this item ID
+            row_num = await self.find_row_by_id(access_token, spreadsheet_id, item_id)
+            
+            if row_num is None:
+                logging.getLogger(__name__).warning("Item ID %s not found in spreadsheet", item_id)
+                outcomes[item_id] = False
+                continue
+            
+            logging.getLogger(__name__).info("Found item ID %s at row %s, updating...", item_id, row_num)
+            # Update the row
+            range_ = f"A{row_num}:M{row_num}"  # Include ID column (A-M)
+            url = f"{SHEETS_BASE_URL}/{spreadsheet_id}/values/{range_}"
+            params = {"valueInputOption": value_input_option}
+            body = {"values": [row_values]}
+            
+            async with httpx.AsyncClient(timeout=20) as client:
+                resp = await client.put(
+                    url,
+                    params=params,
+                    json=body,
+                    headers={"Authorization": f"Bearer {access_token}"},
+                )
+            
+            logging.getLogger(__name__).info(
+                "PUT item %s at row %s – status %s – body %s",
+                item_id, row_num, resp.status_code, resp.text[:200],
+            )
+            outcomes[item_id] = resp.status_code in (200, 201)
+            
+        logging.getLogger(__name__).info("update_rows_by_id completed with outcomes: %s", outcomes)
+        return outcomes
+
     async def create_spreadsheet(
         self,
         db: AsyncSession,
@@ -164,48 +241,111 @@ class GoogleSheetsService:
         title: str,
         sheet_title: Optional[str] = None,
     ) -> str:
-        """Create a new spreadsheet and return its ID."""
+        """Create a new Google Sheets spreadsheet with protected ID column."""
         access_token = await self._refresh_access_token_if_needed(db, user, user_crud)
-        url = f"{SHEETS_BASE_URL}"
-        body: Dict[str, Any] = {
+        
+        # Create the spreadsheet
+        body = {
             "properties": {"title": title},
+            "sheets": [
+                {
+                    "properties": {
+                        "title": sheet_title or "Sheet1",
+                        "gridProperties": {
+                            "rowCount": 1000,
+                            "columnCount": 13,  # A-M (includes ID column)
+                        },
+                    }
+                }
+            ],
         }
-        if sheet_title:
-            body["sheets"] = [{"properties": {"title": sheet_title}}]
-
+        
+        spreadsheet_id = None
+        sheet_id = None
+        
+        # Step 1: Create the spreadsheet
+        url = f"{SHEETS_BASE_URL}"
         async with httpx.AsyncClient(timeout=20) as client:
-            resp = await client.post(url, json=body, headers={"Authorization": f"Bearer {access_token}"})
-
-        if resp.status_code not in (200, 201):
-            raise RuntimeError(f"Failed to create spreadsheet: {resp.text}")
-
-        data = resp.json()
-        spreadsheet_id = data.get("spreadsheetId")
-        if not spreadsheet_id:
-            raise RuntimeError("Spreadsheet ID missing in response")
-
-        # Append header row
-        try:
-            await self.append_rows(
-                db,
-                user,
-                user_crud,
-                spreadsheet_id=spreadsheet_id,
-                values=[HEADER_ROW],
-                range_="A1",
-                value_input_option="RAW",
+            resp = await client.post(
+                url,
+                json=body,
+                headers={"Authorization": f"Bearer {access_token}"},
             )
-        except Exception as e:
-            # Not fatal; log but proceed
-            logging.getLogger(__name__).warning("Failed to append header row: %s", e)
-
-        # Store for user if not set
-        if not user.sheets_spreadsheet_id:
-            await user_crud.update(
-                db,
-                db_obj=user,
-                obj_in={"sheets_spreadsheet_id": spreadsheet_id},
+            
+            if resp.status_code not in (200, 201):
+                raise RuntimeError(f"Failed to create spreadsheet: {resp.text}")
+            
+            spreadsheet = resp.json()
+            spreadsheet_id = spreadsheet["spreadsheetId"]
+            sheet_id = spreadsheet["sheets"][0]["properties"]["sheetId"]
+        
+        # Step 2: Add header row
+        async with httpx.AsyncClient(timeout=20) as client:
+            header_url = f"{SHEETS_BASE_URL}/{spreadsheet_id}/values/A1:M1"
+            header_body = {"values": [HEADER_ROW]}
+            header_resp = await client.put(
+                header_url,
+                params={"valueInputOption": "USER_ENTERED"},
+                json=header_body,
+                headers={"Authorization": f"Bearer {access_token}"},
             )
+            
+            if header_resp.status_code not in (200, 201):
+                logging.getLogger(__name__).warning("Failed to set header row: %s", header_resp.text)
+        
+        # Step 3: Protect the ID column (column M, index 12) from deletion
+        async with httpx.AsyncClient(timeout=20) as client:
+            protection_requests = [
+                {
+                    "addProtectedRange": {
+                        "protectedRange": {
+                            "range": {
+                                "sheetId": sheet_id,
+                                "startColumnIndex": 12,  # Column M (0-indexed)
+                                "endColumnIndex": 13,    # Exclusive end, so just column M
+                            },
+                            "description": "Protected ID column - do not delete",
+                            "warningOnly": False,
+                            "requestingUserCanEdit": False,
+                        }
+                    }
+                },
+                {
+                    "updateDimensionProperties": {
+                        "range": {
+                            "sheetId": sheet_id,
+                            "dimension": "COLUMNS",
+                            "startIndex": 12,  # Column M (0-indexed)
+                            "endIndex": 13,    # Exclusive end, so just column M
+                        },
+                        "properties": {
+                            "hiddenByUser": True
+                        },
+                        "fields": "hiddenByUser"
+                    }
+                }
+            ]
+            
+            protection_body = {"requests": protection_requests}
+            protection_url = f"{SHEETS_BASE_URL}/{spreadsheet_id}:batchUpdate"
+            protection_resp = await client.post(
+                protection_url,
+                json=protection_body,
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            
+            if protection_resp.status_code not in (200, 201):
+                logging.getLogger(__name__).warning("Failed to protect and hide ID column: %s", protection_resp.text)
+            else:
+                logging.getLogger(__name__).info("Successfully protected and hidden ID column M")
+        
+        # Step 4: Update user's spreadsheet ID
+        await user_crud.update(
+            db,
+            db_obj=user,
+            obj_in={"sheets_spreadsheet_id": spreadsheet_id},
+        )
+        
         return spreadsheet_id
 
     async def get_row_values(
