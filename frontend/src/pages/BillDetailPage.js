@@ -196,9 +196,9 @@ function BillDetailPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center space-x-4">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
+        <div className="flex items-center space-x-4 mb-4 sm:mb-0">
           <Link
             to="/bills"
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
@@ -206,71 +206,71 @@ function BillDetailPage() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
               {bill.merchant_company_name || 'Bill Details'}
             </h1>
-            <p className="text-gray-600">{bill.document_type || 'Receipt'}</p>
+            <p className="text-gray-600 text-sm sm:text-base">{bill.document_type || 'Receipt'}</p>
           </div>
         </div>
         
-        <div className="flex space-x-2">
+        <div className="flex flex-col sm:flex-row gap-2 sm:space-x-2">
           {isEditing ? (
             <>
               <button
                 onClick={saveBill}
                 disabled={saving}
-                className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
+                className="flex items-center justify-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 text-sm sm:text-base"
               >
                 {saving ? (
                   <Loader className="h-4 w-4 animate-spin" />
                 ) : (
                   <Save className="h-4 w-4" />
                 )}
-                <span>{saving ? 'Saving...' : 'Save'}</span>
+                <span className="hidden sm:inline">{saving ? 'Saving...' : 'Save'}</span>
               </button>
               <button
                 onClick={cancelEditing}
                 disabled={saving}
-                className="flex items-center space-x-2 bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
+                className="flex items-center justify-center space-x-2 bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50 text-sm sm:text-base"
               >
                 <X className="h-4 w-4" />
-                <span>Cancel</span>
+                <span className="hidden sm:inline">Cancel</span>
               </button>
             </>
           ) : (
             <>
               <button
                 onClick={startEditing}
-                className="flex items-center space-x-2 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors"
+                className="flex items-center justify-center space-x-2 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors text-sm sm:text-base"
               >
                 <Edit3 className="h-4 w-4" />
-                <span>Edit</span>
+                <span className="hidden sm:inline">Edit</span>
               </button>
               <button
                 onClick={deleteBill}
                 disabled={deleting}
-                className="flex items-center space-x-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors disabled:opacity-50"
+                className="flex items-center justify-center space-x-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 text-sm sm:text-base"
               >
                 {deleting ? (
                   <Loader className="h-4 w-4 animate-spin" />
                 ) : (
                   <Trash2 className="h-4 w-4" />
                 )}
-                <span>{deleting ? 'Deleting...' : 'Delete'}</span>
+                <span className="hidden sm:inline">{deleting ? 'Deleting...' : 'Delete'}</span>
               </button>
             </>
           )}
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <Building className="h-5 w-5 mr-2 text-primary-600" />
               Merchant Information
             </h2>
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-500">Company Name</label>
                 {isEditing ? (
@@ -306,7 +306,7 @@ function BillDetailPage() {
                 )}
               </div>
               
-              <div className="md:col-span-2">
+              <div className="sm:col-span-2">
                 <label className="text-sm font-medium text-gray-500">Address</label>
                 {isEditing ? (
                   <textarea
@@ -325,84 +325,85 @@ function BillDetailPage() {
 
           {(((bill.items_services_purchased && bill.items_services_purchased.length > 0) || 
             (bill.items && bill.items.length > 0)) || isEditing) && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-2 sm:mb-0">
                   <FileText className="h-5 w-5 mr-2 text-primary-600" />
                   Items & Services
                 </h2>
                 {isEditing && (
                   <button
                     onClick={addItem}
-                    className="flex items-center space-x-1 text-primary-600 hover:text-primary-700 text-sm"
+                    className="flex items-center space-x-1 text-primary-600 hover:text-primary-700 text-sm self-start sm:self-auto"
                   >
                     <Plus className="h-4 w-4" />
                     <span>Add Item</span>
                   </button>
                 )}
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <div className="min-w-full px-4 sm:px-0">
+                  <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 text-sm font-medium text-gray-500">Description</th>
-                      <th className="text-right py-3 text-sm font-medium text-gray-500">Qty</th>
-                      <th className="text-right py-3 text-sm font-medium text-gray-500">Unit Price</th>
-                      <th className="text-right py-3 text-sm font-medium text-gray-500">Total</th>
-                      {isEditing && <th className="text-center py-3 text-sm font-medium text-gray-500">Actions</th>}
+                      <th className="text-left py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-500">Description</th>
+                      <th className="text-right py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-500">Qty</th>
+                      <th className="text-right py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-500">Unit Price</th>
+                      <th className="text-right py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-500">Total</th>
+                      {isEditing && <th className="text-center py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-500">Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
                     {(isEditing ? editedBill.items : (bill.items_services_purchased || bill.items || [])).map((item, index) => (
                       <tr key={index} className="border-b border-gray-100">
-                        <td className="py-3 text-sm">
+                        <td className="py-2 sm:py-3 text-xs sm:text-sm">
                           {isEditing ? (
                             <input
                               type="text"
                               value={item.description || ''}
                               onChange={(e) => updateItem(index, 'description', e.target.value)}
-                              className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+                              className="w-full border border-gray-300 rounded px-1 sm:px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
                               placeholder="Item description"
                             />
                           ) : (
                             <span className="text-gray-900">{item.description}</span>
                           )}
                         </td>
-                        <td className="py-3 text-sm text-right">
+                        <td className="py-2 sm:py-3 text-xs sm:text-sm text-right">
                           {isEditing ? (
                             <input
                               type="number"
                               value={item.quantity || ''}
                               onChange={(e) => updateItem(index, 'quantity', e.target.value ? parseFloat(e.target.value) : null)}
-                              className="w-20 border border-gray-300 rounded px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-500"
+                              className="w-12 sm:w-20 border border-gray-300 rounded px-1 sm:px-2 py-1 text-xs sm:text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-500"
                               placeholder="Qty"
                             />
                           ) : (
                             <span className="text-gray-600">{item.quantity || 'N/A'}</span>
                           )}
                         </td>
-                        <td className="py-3 text-sm text-right">
+                        <td className="py-2 sm:py-3 text-xs sm:text-sm text-right">
                           {isEditing ? (
                             <input
                               type="number"
                               step="0.01"
                               value={item.unit_price || ''}
                               onChange={(e) => updateItem(index, 'unit_price', e.target.value ? parseFloat(e.target.value) : null)}
-                              className="w-24 border border-gray-300 rounded px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-500"
+                              className="w-16 sm:w-24 border border-gray-300 rounded px-1 sm:px-2 py-1 text-xs sm:text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-500"
                               placeholder="0.00"
                             />
                           ) : (
                             <span className="text-gray-600">{formatCurrency(item.unit_price)}</span>
                           )}
                         </td>
-                        <td className="py-3 text-sm text-right">
+                        <td className="py-2 sm:py-3 text-xs sm:text-sm text-right">
                           {isEditing ? (
                             <input
                               type="number"
                               step="0.01"
                               value={item.total_price_per_item || ''}
                               onChange={(e) => updateItem(index, 'total_price_per_item', e.target.value ? parseFloat(e.target.value) : null)}
-                              className="w-24 border border-gray-300 rounded px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-500"
+                              className="w-16 sm:w-24 border border-gray-300 rounded px-1 sm:px-2 py-1 text-xs sm:text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-500"
                               placeholder="0.00"
                             />
                           ) : (
@@ -410,12 +411,12 @@ function BillDetailPage() {
                           )}
                         </td>
                         {isEditing && (
-                          <td className="py-3 text-center">
+                          <td className="py-2 sm:py-3 text-center">
                             <button
                               onClick={() => removeItem(index)}
                               className="text-red-600 hover:text-red-700 p-1"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                             </button>
                           </td>
                         )}
@@ -423,13 +424,14 @@ function BillDetailPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             </div>
           )}
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <DollarSign className="h-5 w-5 mr-2 text-primary-600" />
               Amount Summary
@@ -443,7 +445,7 @@ function BillDetailPage() {
                     step="0.01"
                     value={editedBill.subtotal || ''}
                     onChange={(e) => updateField('subtotal', e.target.value ? parseFloat(e.target.value) : null)}
-                    className="w-24 border border-gray-300 rounded px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    className="w-20 sm:w-24 border border-gray-300 rounded px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-500"
                     placeholder="0.00"
                   />
                 ) : (
@@ -459,7 +461,7 @@ function BillDetailPage() {
                     step="0.01"
                     value={editedBill.tax || ''}
                     onChange={(e) => updateField('tax', e.target.value ? parseFloat(e.target.value) : null)}
-                    className="w-24 border border-gray-300 rounded px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    className="w-20 sm:w-24 border border-gray-300 rounded px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-500"
                     placeholder="0.00"
                   />
                 ) : (
@@ -475,7 +477,7 @@ function BillDetailPage() {
                     step="0.01"
                     value={editedBill.discount_savings || ''}
                     onChange={(e) => updateField('discount_savings', e.target.value ? parseFloat(e.target.value) : null)}
-                    className="w-24 border border-gray-300 rounded px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    className="w-20 sm:w-24 border border-gray-300 rounded px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-500"
                     placeholder="0.00"
                   />
                 ) : (
@@ -494,7 +496,7 @@ function BillDetailPage() {
                     step="0.01"
                     value={editedBill.total_amount || ''}
                     onChange={(e) => updateField('total_amount', e.target.value ? parseFloat(e.target.value) : null)}
-                    className="w-32 border border-gray-300 rounded px-2 py-1 text-lg font-semibold text-right focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    className="w-24 sm:w-32 border border-gray-300 rounded px-2 py-1 text-lg font-semibold text-right focus:outline-none focus:ring-1 focus:ring-primary-500"
                     placeholder="0.00"
                   />
                 ) : (
